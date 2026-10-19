@@ -69,7 +69,6 @@
     <string name="stop_live_camera">Canlı kamerayı kapat</string>
     <string name="camera_permission_denied">Canlı görüntü için kamera izni gerekli.</string>
     <string name="camera_not_ready">Kamera görüntüsü henüz hazır değil.</string>
-    <string name="crop_hint">Çerçeve içinde görünecek alanı seçmek için kutuyu sürükle. Köşelerinden tutarak kırpma alanını büyüt veya küçült. Baskı ölçüsünün oranı korunur.</string>
+    <string name="crop_hint">Serbest kırpma: alanı, köşeleri veya kenarları parmağınla sürükle. En ve boy birbirinden bağımsız değişir. Alan seçilen çerçeveyi dolduracak şekilde ölçeklenir.</string>
     <string name="crop_reset">Kırpmayı sıfırla</string>
-    <string name="rotate_camera">Kamerayı döndür</string>
 </resources>
