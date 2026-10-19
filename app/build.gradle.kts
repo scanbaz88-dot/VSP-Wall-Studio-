@@ -14,7 +14,22 @@ android {
         versionCode = 6
         versionName = "2.2.1"
     }
+    // Shared, PUBLIC development-only debug certificate. Never use for Play releases.
+    // The preview package has its own identity so existing test installations remain untouched.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("preview-test-only.jks")
+            storePassword = "androidtest"
+            keyAlias = "VspWallStudioPreview"
+            keyPassword = "androidtest"
+        }
+    }
     buildTypes {
+        debug {
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-test"
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             // Release signing is configured locally in Android Studio; never commit a signing key.
