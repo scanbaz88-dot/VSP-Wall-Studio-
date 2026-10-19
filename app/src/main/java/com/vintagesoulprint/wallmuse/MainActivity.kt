@@ -65,7 +65,6 @@ class MainActivity : Activity() {
     private lateinit var preview: TextureView
     private lateinit var canvasHolder: FrameLayout
     private lateinit var cameraButton: Button
-    private lateinit var cameraRotateButton: Button
     private var liveCamera: LiveCamera? = null
     private var liveMode = false
     private lateinit var tools: LinearLayout
@@ -234,9 +233,6 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.pick_wall), "outlined") { pickImage(REQUEST_WALL) })
             addAction(button(getString(R.string.take_photo), "outlined") { takeCameraPhoto() })
             addAction(button(getString(R.string.live_camera), "outlined") {toggleLiveCamera()}.also{cameraButton=it})
-            addAction(button(getString(R.string.rotate_camera), "outlined") {
-                liveCamera?.rotateQuarterTurn()
-            }.also { cameraRotateButton=it;it.visibility=View.GONE })
             addAction(button(getString(R.string.new_project), "outlined") { confirmNewProject() })
         }
         root.addView(actionsRow)
@@ -379,7 +375,6 @@ class MainActivity : Activity() {
         preview.visibility=View.VISIBLE
         canvas.livePreview=true
         cameraButton.text=getString(R.string.stop_live_camera)
-        cameraRotateButton.visibility=View.VISIBLE
         liveCamera=LiveCamera(this,preview){message->
             runOnUiThread {Toast.makeText(this,message,Toast.LENGTH_LONG).show();disableLiveCamera()}
         }
@@ -391,7 +386,6 @@ class MainActivity : Activity() {
         preview.visibility=View.GONE
         canvas.livePreview=false
         if(::cameraButton.isInitialized)cameraButton.text=getString(R.string.live_camera)
-        if(::cameraRotateButton.isInitialized)cameraRotateButton.visibility=View.GONE
     }
     override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray){
         super.onRequestPermissionsResult(requestCode,permissions,grantResults)
@@ -556,9 +550,7 @@ class MainActivity : Activity() {
     /** Real, touch-based photo crop: drag the crop box or its four corners. */
     private fun showCropSettings() {
         val layer=canvas.selected?:run{toast(R.string.no_selection);return}
-        val isRound=FrameCatalog.isRound(layer.frame)
-        val ratio=if(isRound) 1f else (layer.printW / layer.printH.coerceAtLeast(1f))
-        val cropEditor=CropEditorView(this,layer.bitmap,ratio,layer).apply {
+        val cropEditor=CropEditorView(this,layer.bitmap,layer).apply {
             layoutParams=LinearLayout.LayoutParams(-1,dp(390))
         }
         val wrapper=LinearLayout(this).apply {
