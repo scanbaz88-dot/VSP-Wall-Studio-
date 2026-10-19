@@ -26,7 +26,6 @@ class LiveCamera(private val activity:Activity,private val preview:TextureView,
     private var session:CameraCaptureSession?=null
     private var cameraId:String?=null
     private var previewSize:Size?=null
-    private var extraRotation=0
     private var starting=false
     private var running=false
     private var requested=false
@@ -39,11 +38,6 @@ class LiveCamera(private val activity:Activity,private val preview:TextureView,
             override fun onSurfaceTextureDestroyed(st:SurfaceTexture):Boolean{stop();return true}
             override fun onSurfaceTextureUpdated(st:SurfaceTexture){}
         }
-    }
-    fun rotateQuarterTurn(){
-        // Fallback for devices that report unusual camera sensor orientations.
-        extraRotation=(extraRotation+90)%360
-        configureTransform(preview.width,preview.height)
     }
     fun updateTransform(){configureTransform(preview.width,preview.height)}
 
@@ -117,7 +111,11 @@ class LiveCamera(private val activity:Activity,private val preview:TextureView,
         val chars=manager.getCameraCharacteristics(id)
         val sensor=chars.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
         val front=chars.get(CameraCharacteristics.LENS_FACING)==CameraCharacteristics.LENS_FACING_FRONT
-        val degrees=((if(front) sensor+displayDegrees() else sensor-displayDegrees())+extraRotation+720)%360
+        // TextureView reads the camera's landscape buffer in view coordinates.
+        // The extra automatic quarter turn is the correction that previously
+        // required the user to press "Rotate camera" once on this device.
+        // Apply it at preview startup and after every surface/orientation change.
+        val degrees=((if(front) sensor+displayDegrees() else sensor-displayDegrees())+90+720)%360
         val rotated=degrees==90||degrees==270
         val sourceWidth=if(rotated)size.height.toFloat() else size.width.toFloat()
         val sourceHeight=if(rotated)size.width.toFloat() else size.height.toFloat()
