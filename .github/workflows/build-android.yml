@@ -1,4 +1,4 @@
-name: VSP Wall Studio - Stable Test APK
+name: VSP Wall Studio v2.3 - Frames Fullscreen APK
 
 on:
   push:
@@ -48,6 +48,30 @@ jobs:
               git push || echo "Source publishing blocked; continue APK compilation."
             fi
           fi
+      - name: Install V2.3 photo frame assets and fullscreen fix
+        shell: bash
+        run: |
+          if [ -f bootstrap/v23-image-frames.tar.xz.base64 ]; then
+            base64 --decode bootstrap/v23-image-frames.tar.xz.base64 | tar -xJf -
+            python3 tools/apply_v23_patch.py
+            test "$(find app/src/main/assets/frames -name '*.webp' | wc -l)" -eq 12
+            test -f app/src/main/java/com/vintagesoulprint/wallmuse/FramePhotoLibrary.kt
+            python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle.kts')
+          s=p.read_text()
+          assert 'versionCode = 6' in s and 'versionName = "2.2.1"' in s
+          p.write_text(s.replace('versionCode = 6','versionCode = 7').replace('versionName = "2.2.1"','versionName = "2.3.0"'))
+          PY
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A -- app tools docs
+            git rm -f bootstrap/v23-image-frames.tar.xz.base64
+            if ! git diff --cached --quiet; then
+              git commit -m "V2.3: 12 photo frames, immersive fullscreen, stable test APK"
+              git push || echo "Publishing V2.3 source blocked; APK build continues."
+            fi
+          fi
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -81,7 +105,7 @@ jobs:
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-Preview-Stable-APK
+          name: VSP-Wall-Studio-v2.3-Preview-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Upload unit-test reports
