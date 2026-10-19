@@ -111,11 +111,11 @@ class LiveCamera(private val activity:Activity,private val preview:TextureView,
         val chars=manager.getCameraCharacteristics(id)
         val sensor=chars.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
         val front=chars.get(CameraCharacteristics.LENS_FACING)==CameraCharacteristics.LENS_FACING_FRONT
-        // TextureView reads the camera's landscape buffer in view coordinates.
-        // The extra automatic quarter turn is the correction that previously
-        // required the user to press "Rotate camera" once on this device.
-        // Apply it at preview startup and after every surface/orientation change.
-        val degrees=((if(front) sensor+displayDegrees() else sensor-displayDegrees())+90+720)%360
+        // V2.2.1: The previous correction left the rear camera upside-down
+        // on the tested handset. Apply the requested additional 180 degrees
+        // automatically, without an on-screen rotation control.
+        // This maps the old +90 correction to +270 (modulo 360).
+        val degrees=((if(front) sensor+displayDegrees() else sensor-displayDegrees())+270+720)%360
         val rotated=degrees==90||degrees==270
         val sourceWidth=if(rotated)size.height.toFloat() else size.width.toFloat()
         val sourceHeight=if(rotated)size.width.toFloat() else size.height.toFloat()
