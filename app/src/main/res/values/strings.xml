@@ -69,7 +69,6 @@
     <string name="stop_live_camera">Close live camera</string>
     <string name="camera_permission_denied">Camera permission is needed for live preview.</string>
     <string name="camera_not_ready">Camera preview is not ready yet.</string>
-    <string name="crop_hint">Move the highlighted area to choose what appears in the frame. Drag a corner to zoom the crop. The crop maintains the selected print ratio.</string>
+    <string name="crop_hint">Free crop: drag the selection, any corner or side. Width and height change independently. The selected area fills the chosen frame, which may change image proportions.</string>
     <string name="crop_reset">Reset crop</string>
-    <string name="rotate_camera">Rotate camera</string>
 </resources>
