@@ -247,12 +247,11 @@ class WallCanvasView(context: Context) : View(context) {
         val top = (l.cropTop + trim).coerceIn(0f, .98f)
         val right = (l.cropRight - trim).coerceIn(left + .01f, 1f)
         val bottom = (l.cropBottom - trim).coerceIn(top + .01f, 1f)
+        // Freeform manual selection must be respected exactly. Never perform
+        // a hidden second, ratio-locked center crop after the user presses Apply.
+        // If print proportions differ, scale the chosen rectangle to fill the
+        // frame; the crop editor itself never adjusts or locks X/Y together.
         val bounds=RectF(image.width*left,image.height*top,image.width*right,image.height*bottom)
-        val imageRatio=bounds.width()/bounds.height();val targetRatio=dst.width()/dst.height()
-        if(imageRatio>targetRatio){val wanted=bounds.height()*targetRatio;val extra=(bounds.width()-wanted)*.5f
-            bounds.left+=extra;bounds.right-=extra
-        }else{val wanted=bounds.width()/targetRatio;val extra=(bounds.height()-wanted)*.5f
-            bounds.top+=extra;bounds.bottom-=extra}
         val source=Rect(bounds.left.roundToInt().coerceIn(0,image.width-1),bounds.top.roundToInt().coerceIn(0,image.height-1),
             bounds.right.roundToInt().coerceIn(1,image.width),bounds.bottom.roundToInt().coerceIn(1,image.height))
         c.save()
