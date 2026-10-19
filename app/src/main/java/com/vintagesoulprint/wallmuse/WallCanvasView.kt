@@ -361,8 +361,15 @@ object FrameCatalog {
         "Antique gold oval","Round walnut","Matte black oval","Gallery canvas",
         "Floating canvas","Victorian dark carved","Brushed silver","Slim bronze","Round antique gold")
     fun displayName(id:Int):String=if(java.util.Locale.getDefault().language=="tr")frames[id].name else englishNames[id]
-    fun categoryName(name:String):String=if(java.util.Locale.getDefault().language=="tr")name else when(name){
-        "Ahşap"->"Wood","Antika"->"Antique","Oval & Yuvarlak"->"Oval & Round", "Tuval"->"Canvas",else->name}
+    fun categoryName(name: String): String =
+        if (java.util.Locale.getDefault().language == "tr") name
+        else when (name) {
+            "Ahşap" -> "Wood"
+            "Antika" -> "Antique"
+            "Oval & Yuvarlak" -> "Oval & Round"
+            "Tuval" -> "Canvas"
+            else -> name
+        }
     fun isOval(id:Int)=id==8||id==10
     fun isRound(id:Int)=id==9||id==16
     fun isCanvas(id:Int)=id==11||id==12
