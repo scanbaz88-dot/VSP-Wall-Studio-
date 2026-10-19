@@ -11,6 +11,7 @@ import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.RectF
 import android.graphics.ImageDecoder
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -64,6 +65,7 @@ class MainActivity : Activity() {
     private lateinit var preview: TextureView
     private lateinit var canvasHolder: FrameLayout
     private lateinit var cameraButton: Button
+    private lateinit var cameraRotateButton: Button
     private var liveCamera: LiveCamera? = null
     private var liveMode = false
     private lateinit var tools: LinearLayout
@@ -179,7 +181,8 @@ class MainActivity : Activity() {
                         saved.widthFraction, saved.angle, saved.frame, saved.sourceUri,
                         saved.printW,
                         if(saved.printH==0f) saved.printW * it.height / max(1,it.width) else saved.printH,
-                        saved.trim)
+                        saved.trim,
+                        saved.cropLeft, saved.cropTop, saved.cropRight, saved.cropBottom)
                 }
             }
             canvas.restore(WallCanvasView.State(layers, draft.selectedId))
@@ -231,6 +234,9 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.pick_wall), "outlined") { pickImage(REQUEST_WALL) })
             addAction(button(getString(R.string.take_photo), "outlined") { takeCameraPhoto() })
             addAction(button(getString(R.string.live_camera), "outlined") {toggleLiveCamera()}.also{cameraButton=it})
+            addAction(button(getString(R.string.rotate_camera), "outlined") {
+                liveCamera?.rotateQuarterTurn()
+            }.also { cameraRotateButton=it;it.visibility=View.GONE })
             addAction(button(getString(R.string.new_project), "outlined") { confirmNewProject() })
         }
         root.addView(actionsRow)
@@ -240,7 +246,14 @@ class MainActivity : Activity() {
         root.addView(headlineLabel)
 
         canvasHolder = FrameLayout(this)
-        preview = TextureView(this).apply { visibility = View.GONE }
+        preview = TextureView(this).apply {
+            visibility = View.GONE
+            addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                if(right-left!=oldRight-oldLeft || bottom-top!=oldBottom-oldTop) {
+                    liveCamera?.updateTransform()
+                }
+            }
+        }
         canvasHolder.addView(preview,FrameLayout.LayoutParams(-1,-1))
         canvas = WallCanvasView(this)
         canvas.onSelectionChanged = { syncControls() }
@@ -255,10 +268,10 @@ class MainActivity : Activity() {
         }
         val toolbar = hRow().apply {
             addAction(button(getString(R.string.print_size), "quiet") { showPrintSizes() })
-            addAction(button(getString(R.string.wall_width), "quiet") { showWallWidth() })
-            addAction(button(getString(R.string.frame_library), "quiet") { showFrames() })
-            addAction(button(getString(R.string.random_frame), "quiet") { randomFrame() })
             addAction(button(getString(R.string.crop), "quiet") { showCropSettings() })
+            addAction(button(getString(R.string.frame_library), "quiet") { showFrames() })
+            addAction(button(getString(R.string.wall_width), "quiet") { showWallWidth() })
+            addAction(button(getString(R.string.random_frame), "quiet") { randomFrame() })
             addAction(button(getString(R.string.duplicate), "quiet") {
                 if (canvas.selected == null) toast(R.string.no_selection)
                 else if (canvas.artCount >= 12) toast(R.string.max_art)
@@ -366,6 +379,7 @@ class MainActivity : Activity() {
         preview.visibility=View.VISIBLE
         canvas.livePreview=true
         cameraButton.text=getString(R.string.stop_live_camera)
+        cameraRotateButton.visibility=View.VISIBLE
         liveCamera=LiveCamera(this,preview){message->
             runOnUiThread {Toast.makeText(this,message,Toast.LENGTH_LONG).show();disableLiveCamera()}
         }
@@ -377,6 +391,7 @@ class MainActivity : Activity() {
         preview.visibility=View.GONE
         canvas.livePreview=false
         if(::cameraButton.isInitialized)cameraButton.text=getString(R.string.live_camera)
+        if(::cameraRotateButton.isInitialized)cameraRotateButton.visibility=View.GONE
     }
     override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray){
         super.onRequestPermissionsResult(requestCode,permissions,grantResults)
@@ -538,14 +553,34 @@ class MainActivity : Activity() {
             }.show()
     }
 
+    /** Real, touch-based photo crop: drag the crop box or its four corners. */
     private fun showCropSettings() {
         val layer=canvas.selected?:run{toast(R.string.no_selection);return}
-        val values=listOf(0f,.02f,.04f,.06f,.10f,.15f,.20f)
-        AlertDialog.Builder(this).setTitle(R.string.crop)
-            .setSingleChoiceItems(values.map {"${(it*100).toInt()}%"}.toTypedArray(),
-                values.indices.minByOrNull { kotlin.math.abs(layer.trim-values[it]) } ?: 0) { dialog,position ->
-                checkpoint();canvas.setTrim(values[position]);dialog.dismiss()
-            }.setNegativeButton(R.string.cancel,null).show()
+        val isRound=FrameCatalog.isRound(layer.frame)
+        val ratio=if(isRound) 1f else (layer.printW / layer.printH.coerceAtLeast(1f))
+        val cropEditor=CropEditorView(this,layer.bitmap,ratio,layer).apply {
+            layoutParams=LinearLayout.LayoutParams(-1,dp(390))
+        }
+        val wrapper=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            setPadding(dp(12),dp(8),dp(12),0)
+            addView(label(getString(R.string.crop_hint),12f,BG).apply {
+                setPadding(dp(6),dp(2),dp(6),dp(9))
+            })
+            addView(cropEditor)
+        }
+        val dialog=AlertDialog.Builder(this).setTitle(R.string.crop)
+            .setView(wrapper)
+            .setPositiveButton(R.string.apply) { _,_ ->
+                checkpoint()
+                canvas.setCrop(cropEditor.cropRect())
+                syncControls()
+            }.setNegativeButton(R.string.cancel,null)
+            .setNeutralButton(R.string.crop_reset,null).create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener { cropEditor.resetCrop() }
+        }
+        dialog.show()
     }
 
     private fun confirmClear() {

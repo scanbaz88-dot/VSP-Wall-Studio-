@@ -13,7 +13,9 @@ class WallCanvasView(context: Context) : View(context) {
         val id: Long, val bitmap: Bitmap,
         var cx: Float = .5f, var cy: Float = .46f, var widthFraction: Float = .3f,
         var angle: Float = 0f, var frame: Int = 1, val sourceUri: String? = null,
-        var printW: Float = 60f, var printH: Float = 40f, var trim: Float = 0f
+        var printW: Float = 60f, var printH: Float = 40f, var trim: Float = 0f,
+        var cropLeft: Float = 0f, var cropTop: Float = 0f,
+        var cropRight: Float = 1f, var cropBottom: Float = 1f
     ) { fun snapshot() = copy() }
     data class State(val elements: List<ArtLayer>, val selectedId: Long?)
     data class RenderSnapshot(val photo: Bitmap, val elements: List<ArtLayer>)
@@ -86,7 +88,17 @@ class WallCanvasView(context: Context) : View(context) {
     fun setPrintSize(wCm:Float,hCm:Float,wallCm:Float){selected?.let{it.printW=wCm;it.printH=hCm
         it.widthFraction=(wCm/wallCm).coerceIn(.10f,.85f)};onSelectionChanged?.invoke();invalidate()}
     fun recalibrate(wallCm:Float){artworks.forEach{it.widthFraction=(it.printW/wallCm).coerceIn(.10f,.85f)};invalidate()}
-    fun setTrim(trim:Float){selected?.trim=trim.coerceIn(0f,.24f);invalidate()}
+    /** Persist the user-selected image rectangle in normalized original-image coordinates. */
+    fun setCrop(rect: RectF) {
+        selected?.apply {
+            cropLeft = rect.left.coerceIn(0f, 1f)
+            cropTop = rect.top.coerceIn(0f, 1f)
+            cropRight = rect.right.coerceIn(cropLeft + .001f, 1f)
+            cropBottom = rect.bottom.coerceIn(cropTop + .001f, 1f)
+            trim = 0f
+        }
+        invalidate()
+    }
     fun setSize(frac:Float){selected?.widthFraction=frac.coerceIn(.08f,.88f);invalidate()}
     fun setAngle(degrees:Float){selected?.angle=degrees.coerceIn(-45f,45f);invalidate()}
     fun setBeforeMode(before:Boolean){showArtwork=!before;invalidate()}
@@ -231,7 +243,11 @@ class WallCanvasView(context: Context) : View(context) {
     private fun drawArtClipped(c:Canvas,l:ArtLayer,dst:RectF,oval:Boolean,p:Paint){
         val image=l.bitmap
         val trim=l.trim.coerceIn(0f,.24f)
-        val bounds=RectF(image.width*trim,image.height*trim,image.width*(1-trim),image.height*(1-trim))
+        val left = (l.cropLeft + trim).coerceIn(0f, .98f)
+        val top = (l.cropTop + trim).coerceIn(0f, .98f)
+        val right = (l.cropRight - trim).coerceIn(left + .01f, 1f)
+        val bottom = (l.cropBottom - trim).coerceIn(top + .01f, 1f)
+        val bounds=RectF(image.width*left,image.height*top,image.width*right,image.height*bottom)
         val imageRatio=bounds.width()/bounds.height();val targetRatio=dst.width()/dst.height()
         if(imageRatio>targetRatio){val wanted=bounds.height()*targetRatio;val extra=(bounds.width()-wanted)*.5f
             bounds.left+=extra;bounds.right-=extra
@@ -361,15 +377,13 @@ object FrameCatalog {
         "Antique gold oval","Round walnut","Matte black oval","Gallery canvas",
         "Floating canvas","Victorian dark carved","Brushed silver","Slim bronze","Round antique gold")
     fun displayName(id:Int):String=if(java.util.Locale.getDefault().language=="tr")frames[id].name else englishNames[id]
-    fun categoryName(name: String): String =
-        if (java.util.Locale.getDefault().language == "tr") name
-        else when (name) {
-            "Ahşap" -> "Wood"
-            "Antika" -> "Antique"
-            "Oval & Yuvarlak" -> "Oval & Round"
-            "Tuval" -> "Canvas"
-            else -> name
-        }
+    fun categoryName(name:String):String=if(java.util.Locale.getDefault().language=="tr")name else when(name){
+        "Ahşap" -> "Wood"
+        "Antika" -> "Antique"
+        "Oval & Yuvarlak" -> "Oval & Round"
+        "Tuval" -> "Canvas"
+        else -> name
+    }
     fun isOval(id:Int)=id==8||id==10
     fun isRound(id:Int)=id==9||id==16
     fun isCanvas(id:Int)=id==11||id==12

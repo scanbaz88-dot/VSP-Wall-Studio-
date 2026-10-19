@@ -59,7 +59,7 @@
     <string name="wall_width_explain">Fotoğrafın gösterdiği duvarın yaklaşık genişliği (cm). Gerçekçi ölçek için doğru değeri girin. Varsayılan 300 cm tahmindir.</string>
     <string name="frame_library">Çerçeve kütüphanesi</string>
     <string name="random_frame">Rastgele çerçeve</string>
-    <string name="crop">Kenarları kırp</string>
+    <string name="crop">Elle kırp</string>
     <string name="width_cm">Genişlik (cm)</string>
     <string name="height_cm">Yükseklik (cm)</string>
     <string name="custom_size">Özel baskı ölçüsü</string>
@@ -69,4 +69,7 @@
     <string name="stop_live_camera">Canlı kamerayı kapat</string>
     <string name="camera_permission_denied">Canlı görüntü için kamera izni gerekli.</string>
     <string name="camera_not_ready">Kamera görüntüsü henüz hazır değil.</string>
+    <string name="crop_hint">Çerçeve içinde görünecek alanı seçmek için kutuyu sürükle. Köşelerinden tutarak kırpma alanını büyüt veya küçült. Baskı ölçüsünün oranı korunur.</string>
+    <string name="crop_reset">Kırpmayı sıfırla</string>
+    <string name="rotate_camera">Kamerayı döndür</string>
 </resources>

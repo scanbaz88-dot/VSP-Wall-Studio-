@@ -13,12 +13,13 @@ import java.io.File
  */
 object ProjectStore {
     private const val FILE_NAME = "last_wallmuse_draft.json"
-    private const val FORMAT_VERSION = 2
+    private const val FORMAT_VERSION = 3
 
     data class StoredLayer(
         val id: Long, val sourceUri: String, val cx: Float, val cy: Float,
         val widthFraction: Float, val angle: Float, val frame: Int,
-        val printW: Float, val printH: Float, val trim: Float
+        val printW: Float, val printH: Float, val trim: Float,
+        val cropLeft: Float, val cropTop: Float, val cropRight: Float, val cropBottom: Float
     )
     data class Draft(
         val wallUri: String?, val layers: List<StoredLayer>,
@@ -48,6 +49,10 @@ object ProjectStore {
             json.put("printW", layer.printW.toDouble())
             json.put("printH", layer.printH.toDouble())
             json.put("trim", layer.trim.toDouble())
+            json.put("cropLeft", layer.cropLeft.toDouble())
+            json.put("cropTop", layer.cropTop.toDouble())
+            json.put("cropRight", layer.cropRight.toDouble())
+            json.put("cropBottom", layer.cropBottom.toDouble())
             layers.put(json)
         }
         root.put("layers", layers)
@@ -83,7 +88,11 @@ object ProjectStore {
                 frame = item.optInt("frame", 1).coerceIn(0, FrameCatalog.frames.lastIndex),
                 printW = item.optDouble("printW",60.0).toFloat().coerceIn(5f,300f),
                 printH = item.optDouble("printH",0.0).toFloat().coerceIn(0f,300f),
-                trim = item.optDouble("trim",0.0).toFloat().coerceIn(0f,.24f)
+                trim = item.optDouble("trim",0.0).toFloat().coerceIn(0f,.24f),
+                cropLeft = item.optDouble("cropLeft",0.0).toFloat().coerceIn(0f,.98f),
+                cropTop = item.optDouble("cropTop",0.0).toFloat().coerceIn(0f,.98f),
+                cropRight = item.optDouble("cropRight",1.0).toFloat().coerceIn(.01f,1f),
+                cropBottom = item.optDouble("cropBottom",1.0).toFloat().coerceIn(.01f,1f)
             ))
         }
         val selected = if (json.isNull("selected")) null else json.optLong("selected")
