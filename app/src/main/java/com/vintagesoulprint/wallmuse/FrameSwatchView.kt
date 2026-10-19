@@ -9,6 +9,33 @@ import kotlin.math.min
 class FrameSwatchView(context: Context,private val style:Int):View(context){
     private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
     override fun onDraw(c:Canvas){super.onDraw(c)
+        val photo=FramePhotoLibrary.info(style)
+        if (photo!=null) {
+            // Render the real image asset in the library thumbnail, not a
+            // placeholder gradient swatch from the old frame library.
+            c.drawColor(0xFFF0ECE5.toInt())
+            val bmp=FramePhotoLibrary.bitmap(context,style)
+            if (bmp!=null) {
+                val pad=5f*resources.displayMetrics.density
+                val scale=min((width-2f*pad)/bmp.width,(height-2f*pad)/bmp.height)
+                val ow=bmp.width*scale;val oh=bmp.height*scale
+                val outer=RectF((width-ow)*.5f,(height-oh)*.5f,
+                    (width+ow)*.5f,(height+oh)*.5f)
+                val inner=FramePhotoLibrary.innerBounds(outer,photo)
+                paint.shader=LinearGradient(inner.left,inner.top,inner.right,inner.bottom,
+                    0xFFD3C6AD.toInt(),0xFF726E63.toInt(),Shader.TileMode.CLAMP)
+                c.save()
+                if(photo.oval) {
+                    val path=Path().apply{addOval(inner,Path.Direction.CW)}
+                    c.clipPath(path)
+                } else c.clipRect(inner)
+                c.drawRect(inner,paint)
+                c.restore()
+                paint.shader=null
+                FramePhotoLibrary.draw(c,context,style,inner,outer,paint)
+            }
+            return
+        }
         val pad=8*resources.displayMetrics.density
         c.drawColor(0xFFE5DCCB.toInt())
         val ratio=if(FrameCatalog.isRound(style))1f else 1.33f

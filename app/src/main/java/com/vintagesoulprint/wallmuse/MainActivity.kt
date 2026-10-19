@@ -61,6 +61,8 @@ class MainActivity : Activity() {
     }
 
     private lateinit var root: LinearLayout
+    private lateinit var headerBar: LinearLayout
+    private lateinit var fullscreenExitButton: Button
     private lateinit var canvas: WallCanvasView
     private lateinit var preview: TextureView
     private lateinit var canvasHolder: FrameLayout
@@ -115,8 +117,13 @@ class MainActivity : Activity() {
             val system = if (android.os.Build.VERSION.SDK_INT >= 30) {
                 insets.getInsets(WindowInsets.Type.systemBars())
             } else null
-            v.setPadding(dp(10), (system?.top ?: insets.systemWindowInsetTop) + dp(6),
-                dp(10), (system?.bottom ?: insets.systemWindowInsetBottom) + dp(5))
+            if (editing) {
+                v.setPadding(dp(10), (system?.top ?: insets.systemWindowInsetTop) + dp(6),
+                    dp(10), (system?.bottom ?: insets.systemWindowInsetBottom) + dp(5))
+            } else {
+                // Immersive preview really extends behind both system bars.
+                v.setPadding(0, 0, 0, 0)
+            }
             insets
         }
     }
@@ -212,8 +219,9 @@ class MainActivity : Activity() {
         titleBox.addView(label(getString(R.string.subtitle), 9f, GOLD, true).apply {
             letterSpacing = .14f
         })
+        headerBar = header
         header.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
-        focusButton = button(getString(R.string.focus), "quiet") { setFocusMode(!editing) }
+        focusButton = button(getString(R.string.focus), "quiet") { setFocusMode(editing) }
         header.addView(focusButton)
         header.addView(button("ⓘ", "quiet") {
             AlertDialog.Builder(this)
@@ -255,6 +263,15 @@ class MainActivity : Activity() {
         canvas.onSelectionChanged = { syncControls() }
         canvas.onGestureStart = { checkpoint() }
         canvasHolder.addView(canvas,FrameLayout.LayoutParams(-1,-1))
+        // The ordinary header is hidden in fullscreen, so keep this floating
+        // exit control above the preview: fullscreen never traps the user.
+        fullscreenExitButton = button("✕  " + getString(R.string.edit), "outlined") {
+            setFocusMode(false)
+        }.apply { visibility = View.GONE }
+        canvasHolder.addView(fullscreenExitButton,
+            FrameLayout.LayoutParams(-2,dp(44),Gravity.TOP or Gravity.END).apply {
+                setMargins(dp(8),dp(14),dp(12),dp(8))
+            })
         root.addView(canvasHolder, LinearLayout.LayoutParams(-1, 0, 1f))
 
         tools = LinearLayout(this).apply {
@@ -395,24 +412,41 @@ class MainActivity : Activity() {
         }
     }
     override fun onPause(){liveCamera?.stop();super.onPause()}
-    override fun onResume(){super.onResume();if(liveMode)liveCamera?.start()}
+    override fun onResume(){super.onResume();if(liveMode)liveCamera?.start();if(!editing)applyImmersiveBars(true)}
 
     private fun setFocusMode(active: Boolean) {
         editing = !active
         val visibility = if (active) View.GONE else View.VISIBLE
+        headerBar.visibility = visibility
         tools.visibility = visibility
         bottom.visibility = visibility
         actionsRow.visibility = visibility
         headlineLabel.visibility = visibility
+        fullscreenExitButton.visibility = if (active) View.VISIBLE else View.GONE
         focusButton.text = getString(if (active) R.string.edit else R.string.focus)
         canvas.showSelectionHandles = !active
         canvas.isEnabled = !active
         canvas.invalidate()
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = if (active) {
-            View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        } else 0
+        applyImmersiveBars(active)
+        root.requestApplyInsets()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun applyImmersiveBars(active: Boolean) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.insetsController?.let { ctl ->
+                ctl.systemBarsBehavior =
+                    android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                if (active) ctl.hide(WindowInsets.Type.systemBars())
+                else ctl.show(WindowInsets.Type.systemBars())
+            }
+        } else {
+            window.decorView.systemUiVisibility = if (active)
+                View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            else 0
+        }
     }
 
     @Deprecated("Use system back callback when upgrading Android runtime dependencies")
@@ -466,14 +500,17 @@ class MainActivity : Activity() {
         val scroll = ScrollView(this)
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14),dp(8),dp(14),dp(8)) }
         scroll.addView(content)
-        val groups = listOf("Modern", "Ahşap", "Metal", "Antika", "Oval & Yuvarlak", "Tuval")
+        // Photo-based styles are the primary library. Legacy vector frames
+        // remain readable in older saved projects, but are hidden in the picker.
+        val groups = listOf("Modern", "Ahşap", "Antika", "Oval & Yuvarlak", "Tuval")
         val dialog = AlertDialog.Builder(this).setTitle(R.string.frame_library)
             .setView(scroll).setNegativeButton(R.string.cancel, null).create()
         groups.forEach { category ->
             content.addView(label(FrameCatalog.categoryName(category), 16f, BG, true).apply {setPadding(dp(6),dp(16),0,dp(8))})
             val grid = GridLayout(this).apply { columnCount = 2 }
             FrameCatalog.frames.forEachIndexed { index, frame ->
-                if (frame.category != category) return@forEachIndexed
+                if (frame.category != category ||
+                    (index !in 17..28 && index != 0 && index != 11 && index != 12)) return@forEachIndexed
                 val sample = FrameSwatchView(this,index)
                 val col = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
@@ -496,7 +533,7 @@ class MainActivity : Activity() {
     private fun randomFrame() {
         if (canvas.selected == null) { toast(R.string.no_selection); return }
         val current = canvas.selected!!.frame
-        val alternatives = FrameCatalog.frames.indices.filter { it != current && it != 0 }
+        val alternatives = (17..28).filter { it != current }
         checkpoint();canvas.setFrame(alternatives.random());syncControls()
     }
 

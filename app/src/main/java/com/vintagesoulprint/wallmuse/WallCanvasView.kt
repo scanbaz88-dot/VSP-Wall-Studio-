@@ -73,7 +73,7 @@ class WallCanvasView(context: Context) : View(context) {
         val heightCm = widthCm * tallness
         val stagger = (artworks.size % 5) * .032f
         val initialWidth = min(.34f,.60f/max(.6f,tallness))
-        val layer=ArtLayer(nextId++,bitmap,.49f+stagger,.44f+stagger,initialWidth,0f,1,
+        val layer=ArtLayer(nextId++,bitmap,.49f+stagger,.44f+stagger,initialWidth,0f,20,
             sourceUri,widthCm,heightCm,0f)
         artworks.add(layer); selectedId=layer.id; showArtwork=true
         onSelectionChanged?.invoke();invalidate();return true
@@ -136,10 +136,12 @@ class WallCanvasView(context: Context) : View(context) {
         val(w,h)=artworkDimensions(l,room)
         val cx=room.left+l.cx*room.width();val cy=room.top+l.cy*room.height()
         val scale=min(w,h)
+        val photoFrame = FramePhotoLibrary.info(l.frame)
         val stroke=when{l.frame==0->0f;FrameCatalog.isCanvas(l.frame)->scale*.022f
             FrameCatalog.isOrnate(l.frame)->scale*.092f;else->scale*.055f}.coerceAtLeast(if(l.frame==0)0f else 2*density)
         val interior=RectF(cx-w/2,cy-h/2,cx+w/2,cy+h/2)
-        val exterior=RectF(interior.left-stroke,interior.top-stroke,interior.right+stroke,interior.bottom+stroke)
+        val exterior=if(photoFrame!=null)FramePhotoLibrary.outerBounds(interior,photoFrame)
+            else RectF(interior.left-stroke,interior.top-stroke,interior.right+stroke,interior.bottom+stroke)
         val oval=FrameCatalog.isOval(l.frame)||FrameCatalog.isRound(l.frame)
         c.save();c.rotate(l.angle,cx,cy)
         // A soft ambient shadow plus a short contact shadow, both follow the chosen silhouette.
@@ -147,11 +149,18 @@ class WallCanvasView(context: Context) : View(context) {
         shadowShape(c,exterior,oval,scale*.030f,scale*.042f,p)
         p.color=Color.argb(15,15,13,11)
         shadowShape(c,exterior,oval,scale*.045f,scale*.061f,p)
-        if (l.frame!=0) drawFrameBody(c,l.frame,interior,exterior,oval,p)
-        drawArtClipped(c,l,interior,oval,p)
-        if(l.frame!=0) drawInsideLip(c,l.frame,interior,oval,p,scale)
-        if(FrameCatalog.isCanvas(l.frame))drawCanvasDetails(c,interior,exterior,p,scale)
-        if(FrameCatalog.isOrnate(l.frame))drawOrnaments(c,exterior,p,scale,oval,l.frame)
+        if (photoFrame != null) {
+            // Art goes under the genuinely textured, transparent frame asset.
+            drawArtClipped(c,l,interior,oval,p)
+            FramePhotoLibrary.draw(c,context,l.frame,interior,exterior,p)
+        } else {
+            // Legacy and canvas frames are preserved for existing drafts.
+            if (l.frame!=0) drawFrameBody(c,l.frame,interior,exterior,oval,p)
+            drawArtClipped(c,l,interior,oval,p)
+            if(l.frame!=0) drawInsideLip(c,l.frame,interior,oval,p,scale)
+            if(FrameCatalog.isCanvas(l.frame))drawCanvasDetails(c,interior,exterior,p,scale)
+            if(FrameCatalog.isOrnate(l.frame))drawOrnaments(c,exterior,p,scale,oval,l.frame)
+        }
         if(selected){p.reset();p.isAntiAlias=true;p.color=Color.rgb(207,173,99)
             p.style=Paint.Style.STROKE;p.strokeWidth=1.5f*density
             val border=RectF(exterior.left-4*density,exterior.top-4*density,exterior.right+4*density,exterior.bottom+4*density)
@@ -369,12 +378,29 @@ object FrameCatalog {
         Entry("Oval mat siyah","Oval & Yuvarlak"),Entry("Galeri tuvali","Tuval"),
         Entry("Floating canvas","Tuval"),Entry("Viktoryen oyma koyu","Antika"),
         Entry("Fırçalanmış gümüş","Metal"),Entry("İnce bronz","Metal"),
-        Entry("Yuvarlak antika altın","Oval & Yuvarlak")
+        Entry("Yuvarlak antika altın","Oval & Yuvarlak"),
+        // Photographic PNG/WebP silhouettes from the 12-frame image library.
+        Entry("İnce siyah metal fotoğraf","Modern"),
+        Entry("Klasik beyaz fotoğraf","Modern"),
+        Entry("Doğal meşe fotoğraf","Ahşap"),
+        Entry("Koyu ceviz fotoğraf","Ahşap"),
+        Entry("Eskitilmiş ahşap fotoğraf","Ahşap"),
+        Entry("Siyah galeri fotoğraf","Modern"),
+        Entry("Antika altın oyma fotoğraf","Antika"),
+        Entry("Viktoryen oyma fotoğraf","Antika"),
+        Entry("Eski bronz fotoğraf","Antika"),
+        Entry("Antika oval fotoğraf","Oval & Yuvarlak"),
+        Entry("Yuvarlak altın fotoğraf","Oval & Yuvarlak"),
+        Entry("Oval siyah fotoğraf","Oval & Yuvarlak")
     )
     val englishNames=listOf("Unframed","Classic dark walnut","Slim matte black","Natural oak",
         "Distressed ivory","Brushed gold","Antique brass","Rococo carved gold",
         "Antique gold oval","Round walnut","Matte black oval","Gallery canvas",
-        "Floating canvas","Victorian dark carved","Brushed silver","Slim bronze","Round antique gold")
+        "Floating canvas","Victorian dark carved","Brushed silver","Slim bronze","Round antique gold",
+        "Photo slim black metal", "Photo classic white", "Photo natural oak",
+        "Photo dark walnut", "Photo distressed wood", "Photo black gallery",
+        "Photo antique gold", "Photo Victorian carved", "Photo aged bronze",
+        "Photo antique oval", "Photo round gold", "Photo black oval")
     fun displayName(id:Int):String=if(java.util.Locale.getDefault().language=="tr")frames[id].name else englishNames[id]
     fun categoryName(name:String):String=if(java.util.Locale.getDefault().language=="tr")name else when(name){
         "Ahşap" -> "Wood"
@@ -383,8 +409,8 @@ object FrameCatalog {
         "Tuval" -> "Canvas"
         else -> name
     }
-    fun isOval(id:Int)=id==8||id==10
-    fun isRound(id:Int)=id==9||id==16
+    fun isOval(id:Int)=id==8||id==10||id==26||id==28
+    fun isRound(id:Int)=id==9||id==16||id==27
     fun isCanvas(id:Int)=id==11||id==12
     fun isOrnate(id:Int)=id==7||id==8||id==13||id==16
 }
