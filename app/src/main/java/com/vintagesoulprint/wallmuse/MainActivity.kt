@@ -1050,9 +1050,44 @@ class MainActivity : Activity() {
         val entries=ProjectLibrary.list(this)
         val choices=arrayOf(getString(R.string.save_project))+
             entries.map { it.name }.toTypedArray()
+        val adapter=object:android.widget.BaseAdapter(){
+            override fun getCount()=choices.size
+            override fun getItem(position:Int):Any=choices[position]
+            override fun getItemId(position:Int)=position.toLong()
+            override fun getView(position:Int,convertView:View?,parent:android.view.ViewGroup):View{
+                val row=LinearLayout(this@MainActivity).apply{
+                    orientation=LinearLayout.HORIZONTAL
+                    gravity=Gravity.CENTER_VERTICAL
+                    setPadding(dp(12),dp(5),dp(12),dp(5))
+                    minimumHeight=dp(80)
+                }
+                val picture=ImageView(this@MainActivity).apply{
+                    scaleType=ImageView.ScaleType.CENTER_CROP
+                    setBackgroundColor(0xFFE8E1D5.toInt())
+                }
+                if(position>0){
+                    ProjectLibrary.getThumbnail(this@MainActivity,entries[position-1].id)?.let{
+                        picture.setImageBitmap(it)
+                    }
+                }else {
+                    picture.setImageResource(android.R.drawable.ic_input_add)
+                }
+                row.addView(picture,LinearLayout.LayoutParams(dp(74),dp(65)).apply{
+                    marginEnd=dp(12)
+                })
+                row.addView(TextView(this@MainActivity).apply{
+                    text=choices[position]
+                    textSize=15f
+                    setTextColor(BG)
+                    typeface=Typeface.create("sans-serif-medium",Typeface.NORMAL)
+                    maxLines=2
+                },LinearLayout.LayoutParams(0,-2,1f))
+                return row
+            }
+        }
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.project_library)+" (${entries.size})")
-            .setItems(choices){_,which->
+            .setAdapter(adapter){_,which->
                 if(which==0)promptSaveProject()
                 else {
                     val entry=entries[which-1]
