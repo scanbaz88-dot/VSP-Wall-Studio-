@@ -180,6 +180,20 @@ class RoomLibraryActivity:Activity(){
         scroll.post{scroll.scrollTo(0,0)}
     }
     private fun choose(id:String){
+        val scene=RoomSceneCatalog.scenes(this).firstOrNull{it.id==id}?:return
+        // Free tier retains all six free categories. Preview APK unlocks all
+        // backgrounds for testing, but real release requires verified receipt.
+        if(!scene.free && !BuildConfig.DEBUG && !PremiumSession.verified){
+            android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.premium_center)
+                .setMessage(R.string.premium_scene_locked)
+                .setNegativeButton(R.string.cancel,null)
+                .setPositiveButton(R.string.premium_buy_lifetime){_,_->
+                    startActivity(Intent(this,MainActivity::class.java)
+                        .putExtra("home_mode","premium"))
+                }.show()
+            return
+        }
         if(intent.getBooleanExtra("return_selection",false)){
             setResult(RESULT_OK,Intent().putExtra("scene_id",id))
             finish()
