@@ -181,4 +181,19 @@
     <string name="export_save_now">Görseli kaydet</string>
     <string name="export_share_now">Görseli paylaş</string>
     <string name="export_note_original">Duvar fotoğrafının orijinal çözünürlüğü yapay olarak büyütülmez.</string>
+    <string name="ready_rooms">Hazır Odalar</string>
+    <string name="room_library_intro">24 hazır sahne · 6 ücretsiz · 18 Premium önizleme. Fotoğraflar çevrimdışı çalışır; mevcut tabloların korunur.</string>
+    <string name="room_library_credit">Fotoğraflar: Pexels katkıda bulunanları. Fotoğrafçı adına dokunarak kaynağı görebilirsin. Premium sahneler testte açıktır.</string>
+    <string name="room_library_error">Hazır odalar bulunamadı. Lütfen uygulamayı güncelleyin.</string>
+    <string name="room_all">Tümü</string>
+    <string name="room_living">Salon</string>
+    <string name="room_bedroom">Yatak odası</string>
+    <string name="room_dining">Mutfak/Yemek</string>
+    <string name="room_hallway">Koridor</string>
+    <string name="room_office">Çalışma</string>
+    <string name="room_studio">Boş duvar</string>
+    <string name="room_free">Ücretsiz</string>
+    <string name="room_premium_preview">Premium · Testte Açık</string>
+    <string name="room_applied">%1$s duvarı hazır. Eser ekleyebilirsin.</string>
+    <string name="room_replace_prompt">Duvarı değiştirmek mevcut tabloları silmez. Seçilen sahneye geçilsin mi?</string>
 </resources>
