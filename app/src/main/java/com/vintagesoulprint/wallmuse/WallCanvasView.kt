@@ -162,82 +162,22 @@ class WallCanvasView(context: Context) : View(context) {
         c.restore()
     }
     private fun shadowShape(c:Canvas,r:RectF,oval:Boolean,dx:Float,dy:Float,p:Paint){
-        val soft=RectF(r.left+dx,r.top+dy,r.right+dx,r.bottom+dy)
-        p.shader=RadialGradient(soft.centerX(),soft.centerY(),max(soft.width(),soft.height())*.76f,
-            intArrayOf(Color.argb(66,8,7,5),Color.argb(33,8,7,5),Color.TRANSPARENT),floatArrayOf(0f,.65f,1f),Shader.TileMode.CLAMP)
-        val outer=RectF(soft.left-soft.width()*.025f,soft.top-soft.height()*.025f,soft.right+soft.width()*.025f,soft.bottom+soft.height()*.025f)
-        if(oval)c.drawOval(outer,p)else c.drawRoundRect(outer,3*density,3*density,p)
-        p.shader=null
-    }
-    private fun styleColors(id:Int):IntArray= when(id){
-        1->intArrayOf(0xFF382015.toInt(),0xFF976A43.toInt(),0xFF4B2E20.toInt()) // walnut
-        2->intArrayOf(0xFF090B0B.toInt(),0xFF494A45.toInt(),0xFF101213.toInt()) // black
-        3->intArrayOf(0xFF957254.toInt(),0xFFE1C6A0.toInt(),0xFF9B7758.toInt()) // oak
-        4->intArrayOf(0xFFAC9E8C.toInt(),0xFFF1E7D7.toInt(),0xFFAC9D88.toInt()) // ivory
-        5->intArrayOf(0xFF82612B.toInt(),0xFFF1D68B.toInt(),0xFF967138.toInt()) // brass
-        6->intArrayOf(0xFF4E371A.toInt(),0xFFC19A4E.toInt(),0xFF60461E.toInt()) // antique
-        7->intArrayOf(0xFF533915.toInt(),0xFFD1AE66.toInt(),0xFF5D401D.toInt()) // rococo
-        8->intArrayOf(0xFF593D1E.toInt(),0xFFD4AE63.toInt(),0xFF503515.toInt()) // oval gold
-        9->intArrayOf(0xFF321F16.toInt(),0xFF936640.toInt(),0xFF39291D.toInt()) // circle walnut
-        10->intArrayOf(0xFF141516.toInt(),0xFF676763.toInt(),0xFF191A1A.toInt()) // oval black
-        11->intArrayOf(0xFF877661.toInt(),0xFFDDCEB5.toInt(),0xFF9B8C77.toInt()) // canvas
-        12->intArrayOf(0xFF1B1A18.toInt(),0xFF4A4031.toInt(),0xFF211F1A.toInt()) // floater
-        13->intArrayOf(0xFF2D231C.toInt(),0xFF816749.toInt(),0xFF261B15.toInt()) // carved
-        14->intArrayOf(0xFF52555A.toInt(),0xFFDDDADD.toInt(),0xFF606469.toInt()) // silver
-        15->intArrayOf(0xFF513D2F.toInt(),0xFFB08D70.toInt(),0xFF523E31.toInt()) // bronze
-        16->intArrayOf(0xFF51351D.toInt(),0xFFE4BE71.toInt(),0xFF69441B.toInt()) // round antique
-        else->intArrayOf(0xFF262525.toInt(),0xFF6D5B48.toInt(),0xFF2B2826.toInt())
-    }
-    private fun drawShape(c:Canvas,r:RectF,oval:Boolean,p:Paint){if(oval)c.drawOval(r,p)else c.drawRoundRect(r,2*density,2*density,p)}
-    private fun drawFrameBody(c:Canvas,id:Int,inside:RectF,outside:RectF,oval:Boolean,p:Paint){
-        val col=styleColors(id)
-        val angleShift=outside.width()*.13f
+        // A stack of translucent offset silhouettes simulates penumbra
+        // without a harsh black rectangular drop shadow behind the artwork.
+        val small=min(r.width(),r.height())
+        val step=max(.45f,small*.006f)
         p.reset();p.isAntiAlias=true
-        p.shader=LinearGradient(outside.left,outside.top,outside.right+angleShift,outside.bottom,
-            intArrayOf(col[0],col[1],col[2]),floatArrayOf(0f,.40f,1f),Shader.TileMode.CLAMP)
-        drawShape(c,outside,oval,p);p.shader=null
-        val band=(inside.left-outside.left)
-        // Light hitting the upper/left bevel, and recessed dark bottom/right edge.
-        val bevel=RectF(outside.left+band*.18f,outside.top+band*.18f,outside.right-band*.18f,outside.bottom-band*.18f)
-        p.color=if(id==2||id==10)0xFF343839.toInt() else lighten(col[1],.16f)
-        p.style=Paint.Style.STROKE;p.strokeWidth=max(.8f,band*.11f)
-        drawShape(c,bevel,oval,p)
-        val inner=RectF(inside.left-band*.18f,inside.top-band*.18f,inside.right+band*.18f,inside.bottom+band*.18f)
-        p.color=darken(col[0],.25f);p.strokeWidth=max(1f,band*.19f);drawShape(c,inner,oval,p)
-        if(id==1||id==3||id==4||id==9||id==13){
-            // Restrained wood grain inside only the moulding, with a fixed seed
-            // for stable output on every redraw and during JPEG export.
-            val framePath=Path().apply{if(oval)addOval(outside,Path.Direction.CW)
-                else addRoundRect(outside,2*density,2*density,Path.Direction.CW)}
-            val openPath=Path().apply{if(oval)addOval(inside,Path.Direction.CW)
-                else addRect(inside,Path.Direction.CW)}
-            framePath.op(openPath,Path.Op.DIFFERENCE)
-            c.save();c.clipPath(framePath)
-            val rnd=Random(id*71+43)
-            p.shader=null;p.style=Paint.Style.STROKE
-            p.strokeWidth=max(.35f,density*.38f)
-            val gap=max(2f,density*2.3f)
-            for(j in 0..min(150,(outside.height()/gap).toInt())){
-                val y=outside.top+j*gap
-                p.color=if(j%4==0)0x22FFFFFF else 0x220B0806
-                p.alpha=rnd.nextInt(8,39)
-                val dx=rnd.nextFloat()*outside.width()*.05f
-                c.drawLine(outside.left+dx,y,outside.right-dx,y+gap*.30f,p)
-            }
-            p.alpha=255;p.style=Paint.Style.FILL;c.restore()
-        }
-        if(id==12){ // a narrow dark floating gap between the canvas and outer rail
-            p.color=0xFF100F0F.toInt();p.strokeWidth=max(2f,band*.47f);drawShape(c,inner,oval,p)
+        p.style=Paint.Style.STROKE
+        for(k in 6 downTo 1){
+            val alpha=(7-k)*3+2
+            p.color=Color.argb(alpha,16,13,10)
+            p.strokeWidth=step*(1f+k*.34f)
+            val shadow=RectF(r.left+dx*k/6f-step*k*.35f,r.top+dy*k/6f-step*k*.35f,
+                r.right+dx*k/6f+step*k*.35f,r.bottom+dy*k/6f+step*k*.35f)
+            if(oval)c.drawOval(shadow,p) else c.drawRoundRect(shadow,2*density,2*density,p)
         }
         p.style=Paint.Style.FILL
     }
-    private fun lighten(color:Int,amount:Float):Int=Color.rgb(
-        (Color.red(color)+(255-Color.red(color))*amount).toInt().coerceIn(0,255),
-        (Color.green(color)+(255-Color.green(color))*amount).toInt().coerceIn(0,255),
-        (Color.blue(color)+(255-Color.blue(color))*amount).toInt().coerceIn(0,255))
-    private fun darken(color:Int,amount:Float):Int=Color.rgb(
-        (Color.red(color)*(1-amount)).toInt(),(Color.green(color)*(1-amount)).toInt(),
-        (Color.blue(color)*(1-amount)).toInt())
     private fun drawArtClipped(c:Canvas,l:ArtLayer,dst:RectF,oval:Boolean,p:Paint){
         val image=l.bitmap
         val trim=l.trim.coerceIn(0f,.24f)
@@ -266,13 +206,6 @@ class WallCanvasView(context: Context) : View(context) {
         }
         c.restore()
     }
-    private fun drawInsideLip(c:Canvas,id:Int,dst:RectF,oval:Boolean,p:Paint,size:Float){
-        p.reset();p.isAntiAlias=true;p.style=Paint.Style.STROKE
-        p.color=if(id==11||id==12)0x8853483E.toInt() else 0xA81D1610.toInt()
-        p.strokeWidth=max(.8f,size*.010f)
-        drawShape(c,dst,oval,p)
-        p.style=Paint.Style.FILL
-    }
     private fun drawCanvasDetails(c:Canvas,inner:RectF,outer:RectF,p:Paint,scale:Float){
         p.reset();p.isAntiAlias=true
         // Very subtle linen crosshatch; the painting remains visually dominant.
@@ -288,30 +221,6 @@ class WallCanvasView(context: Context) : View(context) {
         p.style=Paint.Style.STROKE;p.strokeWidth=max(.6f,scale*.006f)
         c.drawRoundRect(RectF(inner.left+1,inner.top+1,inner.right-1,inner.bottom-1),1f,1f,p)
         p.style=Paint.Style.FILL
-    }
-    private fun drawOrnaments(c:Canvas,outer:RectF,p:Paint,scale:Float,oval:Boolean,id:Int){
-        val gold=if(id==13)0xFF998365.toInt() else 0xFFE5C584.toInt()
-        p.reset();p.isAntiAlias=true;p.color=gold;p.alpha=135
-        p.style=Paint.Style.STROKE;p.strokeWidth=max(.7f,scale*.007f)
-        val inset=scale*.041f
-        if(oval){
-            val r=RectF(outer.left+inset,outer.top+inset,outer.right-inset,outer.bottom-inset)
-            c.drawOval(r,p)
-            val dots=30
-            p.style=Paint.Style.FILL
-            for(i in 0 until dots){val a=2*PI*i/dots;val x=r.centerX()+r.width()*.5f*cos(a).toFloat()
-                val y=r.centerY()+r.height()*.5f*sin(a).toFloat()
-                c.drawCircle(x,y,max(.65f,scale*.004f),p)}
-        } else {
-            for(i in 0..3){
-                c.save();c.rotate(i*90f,outer.centerX(),outer.centerY())
-                val left=outer.left+inset;val top=outer.top+inset
-                c.drawArc(RectF(left,top,left+scale*.20f,top+scale*.20f),185f,93f,false,p)
-                c.drawArc(RectF(left+scale*.019f,top+scale*.018f,left+scale*.16f,top+scale*.16f),192f,82f,false,p)
-                c.restore()
-            }
-        }
-        p.style=Paint.Style.FILL;p.alpha=255
     }
     private fun hitTest(x:Float,y:Float):ArtLayer?{for(i in artworks.size-1 downTo 0){val l=artworks[i]
         val(w,h)=artworkDimensions(l,photoRect);val cx=photoRect.left+l.cx*photoRect.width();val cy=photoRect.top+l.cy*photoRect.height()
