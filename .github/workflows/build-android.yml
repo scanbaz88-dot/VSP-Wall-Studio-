@@ -1,4 +1,4 @@
-name: VSP Wall Studio 3.1 - Lifetime Premium Readiness APK
+name: VSP Wall Studio 3.2 - 24 Ready Room Scenes APK
 
 on:
   push:
@@ -93,6 +93,13 @@ jobs:
         run: |
           base64 --decode app/preview-test-only.jks.base64 > app/preview-test-only.jks
           keytool -list -keystore app/preview-test-only.jks -storepass androidtest -alias VspWallStudioPreview > /dev/null
+      - name: Bundle 24 credited Pexels room backgrounds for OFFLINE use
+        shell: bash
+        run: |
+          python3 -m pip install --disable-pip-version-check pillow==11.3.0
+          python3 tools/prepare_room_assets.py
+          test "$(find app/src/main/assets/rooms -maxdepth 1 -name 'room_??.jpg' | wc -l)" -eq 24
+          test "$(find app/src/main/assets/rooms -maxdepth 1 -name 'thumb_room_??.jpg' | wc -l)" -eq 24
       - name: Run tests and build test APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
       - name: Validate preview APK identity and certificate
@@ -105,19 +112,19 @@ jobs:
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.1-Premium-Readiness-APK
+          name: VSP-Wall-Studio-v3.2-24-Ready-Rooms-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Upload unsigned release AAB for engineering checks (NOT FOR PLAY UPLOAD)
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.1-UNSIGNED-release-AAB
+          name: VSP-Wall-Studio-v3.2-UNSIGNED-release-AAB
           path: app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
       - name: Upload unit-test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.1-test-reports
+          name: VSP-Wall-Studio-v3.2-test-reports
           path: app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore
