@@ -181,8 +181,12 @@ class MainActivity : Activity() {
 
     private fun restoreSavedDraft() {
         // Called only on a fresh Activity, never over an in-memory rotation session.
+        val draft=try{ProjectStore.read(this)}catch(_:Exception){null}?:return
+        restoreNamedDraft(draft)
+    }
+
+    private fun restoreNamedDraft(draft:ProjectStore.Draft) {
         try {
-            val draft = ProjectStore.read(this) ?: return
             if (draft.wallUri != null) {
                 val roomUri = Uri.parse(draft.wallUri)
                 val room = decodeBitmap(roomUri, 4096)
@@ -267,6 +271,9 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.take_photo), "outlined") { takeCameraPhoto() })
             addAction(button(getString(R.string.live_camera), "outlined") {toggleLiveCamera()}.also{cameraButton=it})
             addAction(button(getString(R.string.new_project), "outlined") { confirmNewProject() })
+            addAction(button(getString(R.string.project_library), "outlined") { showProjectLibrary() })
+            addAction(button(getString(R.string.gallery_layout), "outlined") { showGalleryLayouts() })
+            addAction(button(getString(R.string.smart_tools), "outlined") { showSmartTools() })
         }
         root.addView(actionsRow)
         headlineLabel = label(getString(R.string.headline), 15f, PAPER, true).apply {
@@ -910,6 +917,79 @@ class MainActivity : Activity() {
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.reset_yes) { _, _ -> checkpoint(); canvas.clearArtwork() }
             .show()
+    }
+
+    /** Existing unsaved autosave remains separate from named snapshots. */
+    private fun showProjectLibrary() {
+        val entries=ProjectLibrary.list(this)
+        val choices=arrayOf(getString(R.string.save_project))+
+            entries.map { it.name }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.project_library)+" (${entries.size})")
+            .setItems(choices){_,which->
+                if(which==0)promptSaveProject()
+                else {
+                    val entry=entries[which-1]
+                    AlertDialog.Builder(this)
+                        .setTitle(entry.name)
+                        .setItems(arrayOf(getString(R.string.open_project),
+                            getString(R.string.rename_project),getString(R.string.delete_project))) {_,action->
+                            when(action){
+                                0->{
+                                    val draft=try{ProjectLibrary.open(this,entry.id)}
+                                        catch(_:Exception){null}
+                                    if(draft==null)toast(R.string.draft_restore_error)
+                                    else AlertDialog.Builder(this)
+                                        .setMessage(R.string.confirm_open_project)
+                                        .setNegativeButton(R.string.cancel,null)
+                                        .setPositiveButton(R.string.open_project){_,_->
+                                            if(liveMode)disableLiveCamera()
+                                            try{ProjectStore.write(this,wallUri?.toString(),
+                                                canvas.state(),canvas.showArtwork)}catch(_:Exception){}
+                                            undo.clear();redo.clear()
+                                            restoreNamedDraft(draft)
+                                            syncControls()
+                                        }.show()
+                                }
+                                1->promptRenameProject(entry)
+                                2->AlertDialog.Builder(this)
+                                    .setMessage(getString(R.string.confirm_delete_project,entry.name))
+                                    .setNegativeButton(R.string.cancel,null)
+                                    .setPositiveButton(R.string.remove){_,_->
+                                        ProjectLibrary.delete(this,entry.id)
+                                        Toast.makeText(this,getString(R.string.deleted),Toast.LENGTH_SHORT).show()
+                                    }.show()
+                            }
+                        }.show()
+                }
+            }.setNegativeButton(R.string.cancel,null).show()
+    }
+    private fun promptSaveProject(){
+        val input=EditText(this).apply{
+            singleLine=true
+            setText(getString(R.string.default_project_name))
+            selectAll()
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.save_project)
+            .setView(input)
+            .setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.save){_,_->
+                val name=input.text.toString().trim()
+                if(name.isBlank()){toast(R.string.name_required);return@setPositiveButton}
+                try{
+                    ProjectLibrary.save(this,name,wallUri?.toString(),canvas.state(),canvas.showArtwork)
+                    Toast.makeText(this,getString(R.string.saved),Toast.LENGTH_SHORT).show()
+                }catch(_:Exception){toast(R.string.save_error)}
+            }.show()
+    }
+    private fun promptRenameProject(entry:ProjectLibrary.Entry){
+        val input=EditText(this).apply{singleLine=true;setText(entry.name)}
+        AlertDialog.Builder(this).setTitle(R.string.rename_project).setView(input)
+            .setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.apply){_,_->
+                ProjectLibrary.rename(this,entry.id,input.text.toString())
+            }.show()
     }
 
     private fun confirmNewProject() {
