@@ -7,18 +7,12 @@ from prepare_room_assets import download
 out=pathlib.Path("build/wall_candidate_review")
 out.mkdir(parents=True,exist_ok=True)
 candidates=[
-("6489085","Modern corridor room","Max Vakhtbovych"),
-("7533922","Gray entrance hallway","Max Vakhtbovych"),
-("7031615","Spacious hall glass doors","Max Vakhtbovych"),
-("6758526","Light hallway mirror","Max Vakhtbovych"),
-("5726022","Minimal green plant wall","kaboompics.com"),
-("10554838","Baskets and neutral wall","Ron Lach"),
-("7045998","Apartment hallway","Max Vakhtbovych"),
-("8490187","Workspace with frame","PNW Production"),
-("4910715","Windowlight wall","Inga Seliverstova"),
-("4386361","Cabinet and neutral wall","alleksana"),
-("8251591","Bedroom white wall","PNW Production"),
-("12277130","Blank wall armchair","dada design"),
+("7059748","Neutral wall console","Elena"),
+("3104527","Concrete dining nook","Vicky Tran"),
+("7671235","Marble kitchen dining","Ivan S"),
+("6956843","Kitchen brick dining","Max Vakhtbovych"),
+("8705762","Minimalist dining with TV","Ron Lach"),
+("6758784","Dining room with wall","Max Vakhtbovych"),
 ]
 cellw,cellh=300,244
 cols=4
