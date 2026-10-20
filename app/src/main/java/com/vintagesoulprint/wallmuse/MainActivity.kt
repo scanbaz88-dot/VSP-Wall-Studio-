@@ -274,6 +274,7 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.project_library), "outlined") { showProjectLibrary() })
             addAction(button(getString(R.string.gallery_layout), "outlined") { showGalleryLayouts() })
             addAction(button(getString(R.string.smart_tools), "outlined") { showSmartTools() })
+            addAction(button(getString(R.string.export_format), "outlined") { showExportFormatDialog() })
         }
         root.addView(actionsRow)
         headlineLabel = label(getString(R.string.headline), 15f, PAPER, true).apply {
@@ -1150,7 +1151,7 @@ class MainActivity : Activity() {
         val name = "WM_CAMERA_${timestamp()}.jpg"
         val content = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.MIME_TYPE, if(png)"image/png" else "image/jpeg")
             put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/VSP Wall Studio")
             put(MediaStore.Images.Media.IS_PENDING, 1)
         }
@@ -1231,7 +1232,18 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun exportImage(share: Boolean) {
+    private fun showExportFormatDialog(){
+        if(canvas.artCount==0){toast(R.string.choose_art_first);return}
+        AlertDialog.Builder(this)
+            .setTitle(R.string.export_format)
+            .setItems(arrayOf(getString(R.string.export_jpeg),
+                getString(R.string.export_png))){_,which->
+                exportImage(false,png=which==1)
+            }
+            .setNegativeButton(R.string.cancel,null).show()
+    }
+
+    private fun exportImage(share: Boolean, png:Boolean=false) {
         if (canvas.wallPhoto == null) { toast(R.string.choose_wall_first); return }
         if (canvas.artCount == 0) { toast(R.string.choose_art_first); return }
         if (exporting) return
@@ -1251,7 +1263,7 @@ class MainActivity : Activity() {
             var result: Uri? = null
             try {
                 bitmap = canvas.exportBitmap(renderSnapshot)
-                result = writeJpeg(bitmap)
+                result = writeImage(bitmap,png)
             } catch (_: Throwable) {
                 // MediaStore is rolled back by writeJpeg when its output operation fails.
             } finally {
@@ -1263,7 +1275,7 @@ class MainActivity : Activity() {
                     shareButton.isEnabled = true
                     saveButton.text = previous
                     if (result != null) {
-                        if (share) shareUri(result!!)
+                        if (share) shareUri(result!!,png)
                         else toast(R.string.saved)
                     } else toast(R.string.save_error)
                 }
@@ -1271,9 +1283,9 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    private fun writeJpeg(bitmap: Bitmap): Uri {
+    private fun writeImage(bitmap: Bitmap,png:Boolean): Uri {
         val metadata = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, "VSP_Wall_Studio_${timestamp()}.jpg")
+            put(MediaStore.Images.Media.DISPLAY_NAME, "VSP_Wall_Studio_${timestamp()}.${if(png)"png" else "jpg"}")
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             put(MediaStore.Images.Media.RELATIVE_PATH,
                 Environment.DIRECTORY_PICTURES + "/VSP Wall Studio")
@@ -1285,7 +1297,7 @@ class MainActivity : Activity() {
             val stream = contentResolver.openOutputStream(uri)
                 ?: throw IOException("Output stream unavailable")
             stream.use {
-                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 93, it))
+                if (!bitmap.compress(if(png)Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, if(png)100 else 93, it))
                     throw IOException("JPEG compression failed")
             }
             contentResolver.update(uri,
@@ -1298,9 +1310,9 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun shareUri(uri: Uri) {
+    private fun shareUri(uri: Uri,png:Boolean=false) {
         val share = Intent(Intent.ACTION_SEND).apply {
-            type = "image/jpeg"
+            type = if(png)"image/png" else "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             clipData = ClipData.newUri(contentResolver, "VSP Wall Studio preview", uri)
