@@ -203,4 +203,5 @@
     <string name="premium_secure_checkout">Payments use Google Play only and require trusted server verification.</string>
     <string name="premium_scene_locked">This room is included with Lifetime Premium. Purchase Premium or restore an existing purchase first.</string>
     <string name="room_frame_ready">Artwork-ready wall</string>
+    <string name="premium_limit_projects">Free plan: up to 3 named projects. Upgrade to Lifetime Premium for unlimited projects.</string>
 </resources>
