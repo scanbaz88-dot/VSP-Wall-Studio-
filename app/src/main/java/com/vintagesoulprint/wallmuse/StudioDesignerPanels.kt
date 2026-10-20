@@ -73,7 +73,7 @@ class GalleryPreviewTile(
             paint.color=listOf(0xFFC5A88C,0xFFA4AFA3,0xFFB5B2A1,0xFF92795F)[i%4].toInt()
             canvas.drawRect(rect,paint)
         }
-        if(selected){
+        if(activeChoice){
             paint.color=StudioUi.GOLD
             paint.style=Paint.Style.STROKE
             paint.strokeWidth=3f*resources.displayMetrics.density
