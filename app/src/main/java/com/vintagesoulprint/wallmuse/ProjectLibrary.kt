@@ -103,13 +103,25 @@ object ProjectLibrary {
     fun open(context:Context,id:String):ProjectStore.Draft? =
         ProjectStore.read(context,filename(id))
     fun delete(context:Context,id:String) {
+        val oldWall=try{open(context,id)?.wallUri}catch(_:Exception){null}
         val before=list(context)
         val after=before.filterNot{it.id==id}
         writeIndex(context,after)
         File(context.filesDir,filename(id)).delete()
         thumbnail(context,id).delete()
-        // Delete its private live-camera wall only if no other project references it.
-        // Existing manual photo URIs are never deleted.
+        if(oldWall!=null){
+            val referenced=after.any{item->
+                try{open(context,item.id)?.wallUri==oldWall}catch(_:Exception){false}
+            } || try{ProjectStore.read(context)?.wallUri==oldWall}catch(_:Exception){false}
+            if(!referenced){
+                try{
+                    val file=File(Uri.parse(oldWall).path?:"").canonicalFile
+                    if(file.parentFile==context.filesDir.canonicalFile &&
+                        file.name.matches(Regex("wall_[a-f0-9]{32}\\.jpg")))
+                        file.delete()
+                }catch(_:Exception){}
+            }
+        }
     }
     fun rename(context:Context,id:String,name:String) {
         if(name.isBlank())return
