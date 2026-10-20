@@ -144,4 +144,13 @@
     <string name="measurement_guides">Toggle size guides</string>
     <string name="measure_note">Measurements are approximate. Calibrate using a known wall reference first.</string>
     <string name="gallery_ratio_note">Artwork aspect ratios are preserved during arrangement.</string>
+    <string name="assistant_welcome_title">Meet your Wall Assistant</string>
+    <string name="assistant_welcome_message">Your new Wall Assistant can guide you through five simple steps: choose a wall, add artwork, set size, align and save. Photos stay on your phone.</string>
+    <string name="assistant_start">Let's start</string>
+    <string name="assistant_later">Not now</string>
+    <string name="assistant_close_editor">Finish the current edit first.</string>
+    <string name="assistant_add_first">Add at least one artwork first.</string>
+    <string name="assistant_line_hint">Tap two points along a shelf or horizontal wall edge. Your artwork will follow its angle.</string>
+    <string name="assistant_line_invalid">Reference too short, vertical or too steep. Choose two distant points on a horizontal edge.</string>
+    <string name="assistant_angle_done">Artwork aligned to your reference: %1$.1f°</string>
 </resources>
