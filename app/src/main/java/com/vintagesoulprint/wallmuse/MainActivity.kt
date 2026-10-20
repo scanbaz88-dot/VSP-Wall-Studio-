@@ -500,8 +500,7 @@ class MainActivity : Activity() {
         val scroll = ScrollView(this)
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14),dp(8),dp(14),dp(8)) }
         scroll.addView(content)
-        // Photo-based styles are the primary library. Legacy vector frames
-        // remain readable in older saved projects, but are hidden in the picker.
+        // Every swatch and every saved artwork uses the same native frame engine.
         val groups = listOf("Modern", "Ahşap", "Antika", "Oval & Yuvarlak", "Tuval")
         val dialog = AlertDialog.Builder(this).setTitle(R.string.frame_library)
             .setView(scroll).setNegativeButton(R.string.cancel, null).create()
@@ -509,8 +508,7 @@ class MainActivity : Activity() {
             content.addView(label(FrameCatalog.categoryName(category), 16f, BG, true).apply {setPadding(dp(6),dp(16),0,dp(8))})
             val grid = GridLayout(this).apply { columnCount = 2 }
             FrameCatalog.frames.forEachIndexed { index, frame ->
-                if (frame.category != category ||
-                    (index !in 17..28 && index != 0 && index != 11 && index != 12)) return@forEachIndexed
+                if (frame.category != category) return@forEachIndexed
                 val sample = FrameSwatchView(this,index)
                 val col = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
@@ -533,7 +531,7 @@ class MainActivity : Activity() {
     private fun randomFrame() {
         if (canvas.selected == null) { toast(R.string.no_selection); return }
         val current = canvas.selected!!.frame
-        val alternatives = (17..28).filter { it != current }
+        val alternatives = FrameCatalog.frames.indices.filter { it != current }
         checkpoint();canvas.setFrame(alternatives.random());syncControls()
     }
 
