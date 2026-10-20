@@ -35,6 +35,24 @@ class WallCanvasView(context: Context) : View(context) {
     var onCalibrationFinished:((Float)->Unit)?=null
     var calibrationActive=false
         private set
+    private var wallLineFirst:Pair<Float,Float>?=null
+    private var wallLineLatest:Pair<Float,Float>?=null
+    private var lineAlignmentCallback:((Float?)->Unit)?=null
+    var wallLineAlignmentActive=false
+        private set
+    fun beginWallLineAlignment(callback:(Float?)->Unit){
+        cancelWallCalibration()
+        wallLineFirst=null;wallLineLatest=null
+        wallLineAlignmentActive=true
+        lineAlignmentCallback=callback
+        invalidate()
+    }
+    fun cancelWallLineAlignment(){
+        wallLineAlignmentActive=false
+        wallLineFirst=null;wallLineLatest=null
+        lineAlignmentCallback=null
+        invalidate()
+    }
     fun beginWallCalibration(callback:(Float)->Unit) {
         calibrationFirstX=null
         onCalibrationFinished=callback
@@ -228,6 +246,30 @@ class WallCanvasView(context: Context) : View(context) {
     }
 
     /** In-scene selection badges, no list of anonymous image files. */
+    private fun drawLineAlignmentGuide(c:Canvas) {
+        val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{
+            color=0xFFD6BA88.toInt()
+            strokeWidth=2.5f*density
+            strokeCap=Paint.Cap.ROUND
+        }
+        val first=wallLineFirst
+        val latest=wallLineLatest
+        if(first!=null){
+            c.drawCircle(first.first,first.second,8*density,p)
+            if(latest!=null){
+                c.drawLine(first.first,first.second,latest.first,latest.second,p)
+                c.drawCircle(latest.first,latest.second,7*density,p)
+            }
+        } else {
+            val cx=photoRect.centerX()
+            val cy=photoRect.centerY()
+            // Short horizontal guide reminds people which kind of wall
+            // reference they should touch.
+            p.alpha=130
+            c.drawLine(cx-37*density,cy,cx+37*density,cy,p)
+            p.alpha=255
+        }
+    }
     private fun drawGroupPickMarkers(c:Canvas){
         for(layer in artworks){
             val(w,h)=artworkDimensions(layer,photoRect)
@@ -426,6 +468,7 @@ class WallCanvasView(context: Context) : View(context) {
                 c.drawLine(sx,photoRect.top,sx,photoRect.bottom,marker)
             }
         }
+        if(wallLineAlignmentActive)drawLineAlignmentGuide(c)
         if(groupPicking&&showArtwork)drawGroupPickMarkers(c)
         if(showMeasurements&&!perspectivePreview)drawMeasurementGuides(c)
         if(showSelectionHandles&&!focusMode)drawAlignmentGuides(c)
@@ -625,6 +668,49 @@ class WallCanvasView(context: Context) : View(context) {
         return null
     }
     override fun onTouchEvent(e:MotionEvent):Boolean{
+        if(wallLineAlignmentActive){
+            when(e.actionMasked){
+                MotionEvent.ACTION_DOWN->{
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    return true
+                }
+                MotionEvent.ACTION_MOVE->{
+                    if(wallLineFirst!=null && e.pointerCount==1){
+                        wallLineLatest=Pair(e.x,e.y)
+                        invalidate()
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_UP->{
+                    if(!photoRect.contains(e.x,e.y)){
+                        wallLineLatest=null
+                        invalidate()
+                        return true
+                    }
+                    val first=wallLineFirst
+                    if(first==null){
+                        wallLineFirst=Pair(e.x,e.y)
+                        wallLineLatest=null
+                    }else{
+                        val scale=photoRect.width().coerceAtLeast(1f)
+                        val angle=WallAlignmentMath.angleDegrees(
+                            first.first/scale,first.second/scale,e.x/scale,e.y/scale
+                        )
+                        val callback=lineAlignmentCallback
+                        cancelWallLineAlignment()
+                        callback?.invoke(angle)
+                    }
+                    invalidate()
+                    performClick()
+                    return true
+                }
+                MotionEvent.ACTION_CANCEL->{
+                    wallLineLatest=null;invalidate()
+                    return true
+                }
+            }
+            return true
+        }
         if(calibrationActive){
             when(e.actionMasked){
                 MotionEvent.ACTION_DOWN->return true
