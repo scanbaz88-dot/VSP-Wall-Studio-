@@ -1051,17 +1051,40 @@ class MainActivity : Activity() {
             getString(R.string.layout_salon),
             getString(R.string.layout_pyramid)
         )
-        AlertDialog.Builder(this)
-            .setTitle(R.string.gallery_layout)
-            .setMessage(R.string.gallery_hint)
-            .setPositiveButton(getString(R.string.apply)){_,_->
-                AlertDialog.Builder(this)
-                    .setTitle(R.string.gallery_layout)
-                    .setItems(choices){_,i->
+        AlertDialog.Builder(this).setTitle(R.string.gallery_layout)
+            .setItems(choices){_,index->
+                val original=getPreferences(MODE_PRIVATE).getInt("gallery_gap_cm",8)
+                val panel=LinearLayout(this).apply{
+                    orientation=LinearLayout.VERTICAL
+                    setPadding(dp(18),dp(8),dp(18),dp(8))
+                }
+                val hint=label(getString(R.string.gallery_ratio_note),13f,BG)
+                hint.setPadding(dp(4),dp(8),dp(4),dp(12))
+                panel.addView(hint)
+                val sizeLabel=label(getString(R.string.gallery_gap)+": ${original} cm",14f,BG,true)
+                panel.addView(sizeLabel)
+                var gap=original
+                panel.addView(SeekBar(this).apply{
+                    max=29
+                    progress=(original-1).coerceIn(0,29)
+                    setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{
+                        override fun onStartTrackingTouch(s:SeekBar)=Unit
+                        override fun onStopTrackingTouch(s:SeekBar)=Unit
+                        override fun onProgressChanged(s:SeekBar,progress:Int,fromUser:Boolean){
+                            if(fromUser){gap=progress+1
+                                sizeLabel.text=getString(R.string.gallery_gap)+": ${gap} cm"
+                            }
+                        }
+                    })
+                })
+                AlertDialog.Builder(this).setTitle(choices[index]).setView(panel)
+                    .setNegativeButton(R.string.cancel,null)
+                    .setPositiveButton(R.string.apply){_,_->
                         checkpoint()
-                        canvas.applyGalleryLayout(layouts[i])
+                        canvas.applyGalleryLayout(layouts[index],gap.toFloat(),wallWidthCm)
+                        getPreferences(MODE_PRIVATE).edit().putInt("gallery_gap_cm",gap).apply()
                         syncControls()
-                    }.setNegativeButton(R.string.cancel,null).show()
+                    }.show()
             }.setNegativeButton(R.string.cancel,null).show()
     }
 
@@ -1073,6 +1096,8 @@ class MainActivity : Activity() {
             getString(R.string.snap_on)+if(canvas.smartSnap)" ✓" else "",
             getString(R.string.shadow_on)+if(canvas.ambientShadows)" ✓" else "",
             getString(R.string.gallery_layout),
+            getString(R.string.group_studio),
+            getString(R.string.measurement_guides),
             getString(R.string.project_library),
             getString(R.string.premium_info)
         )
@@ -1094,8 +1119,10 @@ class MainActivity : Activity() {
                             getString(R.string.shadow_on)+" "+if(canvas.ambientShadows)"ON" else "OFF",
                             Toast.LENGTH_SHORT).show()}
                     5->showGalleryLayouts()
-                    6->showProjectLibrary()
-                    7->AlertDialog.Builder(this).setTitle(R.string.premium_info)
+                    6->showGroupStudio()
+                    7->toggleDimensions()
+                    8->showProjectLibrary()
+                    9->AlertDialog.Builder(this).setTitle(R.string.premium_info)
                         .setMessage(R.string.premium_not_active)
                         .setPositiveButton("OK",null).show()
                 }
