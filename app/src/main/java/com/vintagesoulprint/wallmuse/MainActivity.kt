@@ -275,6 +275,39 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams(-2,dp(44),Gravity.TOP or Gravity.END).apply {
                 setMargins(dp(8),dp(14),dp(12),dp(8))
             })
+        // Website-style Focus View: editing remains active while chrome is hidden.
+        focusToolbar = LinearLayout(this).apply{
+            orientation=LinearLayout.VERTICAL
+            gravity=Gravity.CENTER
+            setPadding(dp(9),dp(9),dp(9),dp(12))
+            background=panelBackground()
+            visibility=View.GONE
+        }
+        focusSizeLabel=label("—",12f,PAPER,true).apply{
+            gravity=Gravity.CENTER
+            setPadding(0,0,0,dp(8))
+        }
+        focusToolbar.addView(focusSizeLabel)
+        val focusButtons=LinearLayout(this).apply{
+            gravity=Gravity.CENTER_VERTICAL
+            orientation=LinearLayout.HORIZONTAL
+        }
+        focusButtons.addView(button("－","outlined"){ adjustFocusSize(-.035f) },
+            LinearLayout.LayoutParams(0,dp(50),1f).apply{marginEnd=dp(6)})
+        focusButtons.addView(button("＋","outlined"){ adjustFocusSize(.035f) },
+            LinearLayout.LayoutParams(0,dp(50),1f).apply{marginEnd=dp(6)})
+        focusButtons.addView(button("⟳ 90°","outlined"){ rotateArtwork() },
+            LinearLayout.LayoutParams(0,dp(50),1.2f).apply{marginEnd=dp(6)})
+        focusButtons.addView(button("⚙ "+getString(R.string.focus_settings),"outlined"){
+            showFocusSettings()
+        },LinearLayout.LayoutParams(0,dp(50),2.7f).apply{marginEnd=dp(6)})
+        focusButtons.addView(button("↓","gold"){exportImage(false)},
+            LinearLayout.LayoutParams(0,dp(50),1f))
+        focusToolbar.addView(focusButtons)
+        canvasHolder.addView(focusToolbar,
+            FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
+                setMargins(dp(12),0,dp(12),dp(15))
+            })
         root.addView(canvasHolder, LinearLayout.LayoutParams(-1, 0, 1f))
 
         tools = LinearLayout(this).apply {
@@ -412,19 +445,110 @@ class MainActivity : Activity() {
 
     private fun setFocusMode(active: Boolean) {
         editing = !active
-        val visibility = if (active) View.GONE else View.VISIBLE
-        headerBar.visibility = visibility
-        tools.visibility = visibility
-        bottom.visibility = visibility
-        actionsRow.visibility = visibility
-        headlineLabel.visibility = visibility
-        fullscreenExitButton.visibility = if (active) View.VISIBLE else View.GONE
-        focusButton.text = getString(if (active) R.string.edit else R.string.focus)
-        canvas.showSelectionHandles = !active
-        canvas.isEnabled = !active
+        val visibility = if(active)View.GONE else View.VISIBLE
+        headerBar.visibility=visibility
+        tools.visibility=visibility
+        bottom.visibility=visibility
+        actionsRow.visibility=visibility
+        headlineLabel.visibility=visibility
+        fullscreenExitButton.visibility=if(active)View.VISIBLE else View.GONE
+        focusToolbar.visibility=if(active)View.VISIBLE else View.GONE
+        focusButton.text=getString(if(active)R.string.edit else R.string.focus)
+        canvas.focusMode=active
+        canvas.showSelectionHandles=!active
+        // IMPORTANT: Focus View is an EDITOR, never a locked preview.
+        canvas.isEnabled=true
         canvas.invalidate()
+        syncControls()
         applyImmersiveBars(active)
         root.requestApplyInsets()
+    }
+
+    private fun adjustFocusSize(delta:Float) {
+        val layer=canvas.selected?:run{toast(R.string.no_selection);return}
+        checkpoint()
+        canvas.setSize((layer.widthFraction+delta).coerceIn(.08f,.88f))
+        syncControls()
+    }
+
+    private fun rotateArtwork(){
+        if(canvas.selected==null){toast(R.string.no_selection);return}
+        checkpoint()
+        canvas.rotateQuarterTurn()
+        syncControls()
+    }
+
+    private fun showPerspectiveSettings(){
+        val layer=canvas.selected?:run{toast(R.string.no_selection);return}
+        val editor=PerspectiveEditorView(this,layer.bitmap,
+            canvas.selectedPerspective()?:PerspectiveGeometry.IDENTITY).apply{
+            layoutParams=LinearLayout.LayoutParams(-1,dp(345))
+        }
+        val wrapper=LinearLayout(this).apply{
+            orientation=LinearLayout.VERTICAL
+            setPadding(dp(12),dp(10),dp(12),0)
+            addView(label(getString(R.string.perspective_hint),12f,BG).apply{
+                setPadding(dp(5),0,dp(5),dp(8))
+            })
+            addView(editor)
+        }
+        val dialog=AlertDialog.Builder(this).setTitle(R.string.perspective)
+            .setView(wrapper)
+            .setPositiveButton(R.string.apply){_,_->
+                checkpoint()
+                canvas.setPerspective(editor.result())
+                syncControls()
+            }.setNegativeButton(R.string.cancel,null)
+            .setNeutralButton(R.string.crop_reset,null).create()
+        dialog.setOnShowListener{
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener{editor.reset()}
+        }
+        dialog.show()
+    }
+
+    /** Bottom-anchored editor settings, available without leaving Focus View. */
+    private fun showFocusSettings(){
+        val items=arrayOf(
+            getString(R.string.print_size),
+            getString(R.string.wall_width),
+            getString(R.string.frame_library),
+            getString(R.string.crop),
+            getString(R.string.perspective),
+            "⟳ 90°",
+            getString(R.string.duplicate),
+            getString(R.string.remove),
+            getString(R.string.reset)
+        )
+        val dialog=AlertDialog.Builder(this)
+            .setTitle(R.string.focus_settings)
+            .setItems(items){_,index->
+                when(index){
+                    0->showPrintSizes()
+                    1->showWallWidth()
+                    2->showFrames()
+                    3->showCropSettings()
+                    4->showPerspectiveSettings()
+                    5->rotateArtwork()
+                    6->{
+                        if(canvas.selected==null)toast(R.string.no_selection)
+                        else if(canvas.artCount>=12)toast(R.string.max_art)
+                        else{checkpoint();canvas.duplicateSelected();syncControls()}
+                    }
+                    7->{
+                        if(canvas.selected==null)toast(R.string.no_selection)
+                        else{checkpoint();canvas.removeSelected();syncControls()}
+                    }
+                    8->confirmClear()
+                }
+            }.setNegativeButton(R.string.cancel,null).create()
+        dialog.setOnShowListener{
+            dialog.window?.apply{
+                setGravity(Gravity.BOTTOM)
+                setLayout(android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                    android.view.WindowManager.LayoutParams.WRAP_CONTENT)
+            }
+        }
+        dialog.show()
     }
 
     @Suppress("DEPRECATION")
@@ -457,6 +581,10 @@ class MainActivity : Activity() {
         sizeSlider.progress = if (layer == null) 20 else (layer.widthFraction * 100).toInt() - 12
         sizeValue.text = if (layer == null) "—" else "${(layer.widthFraction * 100).toInt()}%"
         angleValue.text = if (layer == null) "—" else "${layer.angle.toInt()}°"
+        if(::focusSizeLabel.isInitialized) {
+            focusSizeLabel.text=if(layer==null)getString(R.string.no_selection)
+            else "${PrintCatalog.num(layer.printW.toInt())} × ${PrintCatalog.num(layer.printH.toInt())} cm  ·  ${(layer.widthFraction*100).toInt()}%"
+        }
         selectedLabel.text = if(layer==null) getString(R.string.selection_hint)
             else getString(R.string.selected) + "  ·  " +
                 "${PrintCatalog.num(layer.printW.toInt())} × ${PrintCatalog.num(layer.printH.toInt())} cm" +
