@@ -220,7 +220,7 @@ class MainActivity : Activity() {
             isFillViewport=true
             clipToPadding=false
             overScrollMode=View.OVER_SCROLL_IF_CONTENT_SCROLLS
-            addView(root,ScrollView.LayoutParams(-1,-2))
+            addView(root,FrameLayout.LayoutParams(-1,-2))
         }
         setContentView(editorScroll)
 
