@@ -7,25 +7,18 @@ from prepare_room_assets import download
 out=pathlib.Path("build/wall_candidate_review")
 out.mkdir(parents=True,exist_ok=True)
 candidates=[
-("8987432","Sofa white wall","Ksenia Chernaya"),
-("4846459","Sofa pillows blank wall","Rachel Claire"),
-("10827339","White sofa dresser","Curtis Adams"),
-("8580720","White sofa white wall","RDNE Stock project"),
-("15571770","Arched living room","Muharrem Alper"),
-("7533847","Empty living couch","Max Vakhtbovych"),
-("19966784","Wood floor coffee table","Alex Tyson"),
-("12277130","Chair and blank wall","dada _design"),
-("8251591","White bedroom blank wall","PNW Production"),
-("2643","Minimal striped bed","Jaymantri"),
-("5710695","Office glass desk","Arina Krasnikova"),
-("34446589","Empty room wooden floor","Alexander F Ungerer"),
-("6800942","Blank canvas sofa","Artem Podrez"),
-("30330475","White couch minimal","SlipcoverKAS .COM"),
-("28905874","White sofa plant","Beyza Kilicdere"),
-("36976767","Bedside lamp blank wall","Brunxs Monochrome"),
-("7533847","Living room alternative","Max Vakhtbovych"),
-("8987432","Sofa wall second","Ksenia Chernaya"),
-]
+("6489085","Modern corridor room","Max Vakhtbovych"),
+("7533922","Gray entrance hallway","Max Vakhtbovych"),
+("7031615","Spacious hall glass doors","Max Vakhtbovych"),
+("6758526","Light hallway mirror","Max Vakhtbovych"),
+("5726022","Minimal green plant wall","kaboompics.com"),
+("10554838","Baskets and neutral wall","Ron Lach"),
+("7045998","Apartment hallway","Max Vakhtbovych"),
+("8490187","Workspace with frame","PNW Production"),
+("4910715","Windowlight wall","Inga Seliverstova"),
+("4386361","Cabinet and neutral wall","alleksana"),
+("8251591","Bedroom white wall","PNW Production"),
+("12277130","Blank wall armchair","dada design"),
 cellw,cellh=300,244
 cols=4
 rows=(len(candidates)+cols-1)//cols
