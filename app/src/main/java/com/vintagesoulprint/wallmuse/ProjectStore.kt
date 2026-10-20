@@ -28,10 +28,13 @@ object ProjectStore {
         val selectedId: Long?, val showArtwork: Boolean
     )
 
-    private fun file(context: Context) = AtomicFile(File(context.filesDir, FILE_NAME))
+    private fun file(context: Context, fileName: String = FILE_NAME):AtomicFile {
+        require(fileName==FILE_NAME || fileName.matches(Regex("project_[a-zA-Z0-9_-]{1,64}\\.json")))
+        return AtomicFile(File(context.filesDir,fileName))
+    }
 
     fun write(context: Context, wallUri: String?, state: WallCanvasView.State,
-              showArtwork: Boolean) {
+              showArtwork: Boolean, fileName: String = FILE_NAME) {
         val root = JSONObject()
         root.put("version", FORMAT_VERSION)
         root.put("wall", wallUri ?: JSONObject.NULL)
@@ -64,7 +67,7 @@ object ProjectStore {
             layers.put(json)
         }
         root.put("layers", layers)
-        val atom = file(context)
+        val atom = file(context,fileName)
         val stream = atom.startWrite()
         try {
             stream.write(root.toString().toByteArray(Charsets.UTF_8))
@@ -75,8 +78,8 @@ object ProjectStore {
         }
     }
 
-    fun read(context: Context): Draft? {
-        val atom = file(context)
+    fun read(context: Context, fileName: String = FILE_NAME): Draft? {
+        val atom = file(context,fileName)
         if (!atom.baseFile.exists()) return null
         val json = JSONObject(atom.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() })
         if (json.optInt("version") !in 1..FORMAT_VERSION) return null
