@@ -134,7 +134,17 @@ class WallCanvasView(context: Context) : View(context) {
 
     /** Group editing is transient; artwork and project serialization remain unchanged. */
     private val groupedIds=linkedSetOf<Long>()
+    var groupPicking=false
+        set(value){field=value;invalidate()}
+    var onGroupSelectionChanged:((Int)->Unit)?=null
     val groupCount get()=groupedIds.size
+    fun toggleGroupById(id:Long){
+        if(!artworks.any{it.id==id})return
+        if(id in groupedIds)groupedIds.remove(id)else groupedIds.add(id)
+        selectedId=groupedIds.firstOrNull()
+        onGroupSelectionChanged?.invoke(groupedIds.size)
+        invalidate()
+    }
     fun availableArtworks():List<Pair<Long,String>> = artworks.mapIndexed{index,l->
         l.id to "${index+1}. ${l.printW.toInt()} × ${l.printH.toInt()} cm · ${FrameCatalog.displayName(l.frame)}"
     }
@@ -144,9 +154,12 @@ class WallCanvasView(context: Context) : View(context) {
         groupedIds.addAll(ids.intersect(artworks.map{it.id}.toSet()))
         selectedId=groupedIds.firstOrNull()?:selectedId
         onSelectionChanged?.invoke()
+        onGroupSelectionChanged?.invoke(groupedIds.size)
         invalidate()
     }
-    fun clearGroup(){groupedIds.clear();invalidate()}
+    fun clearGroup(){groupedIds.clear();groupPicking=false;onGroupSelectionChanged?.invoke(0);invalidate()}
+    fun selectAllGroup(){selectGroup(artworks.map{it.id}.toSet())}
+    fun selectNoGroup(){selectGroup(emptySet())}
     private fun groupItems():List<GalleryGeometry.Item> = artworks
         .filter{it.id in groupedIds}.map{
             GalleryGeometry.Item(it.id,it.cx,it.cy,it.widthFraction,
@@ -212,6 +225,34 @@ class WallCanvasView(context: Context) : View(context) {
             layer.widthFraction=new.width
         }
         invalidate()
+    }
+
+    /** In-scene selection badges, no list of anonymous image files. */
+    private fun drawGroupPickMarkers(c:Canvas){
+        for(layer in artworks){
+            val(w,h)=artworkDimensions(layer,photoRect)
+            val x=photoRect.left+layer.cx*photoRect.width()
+            val y=photoRect.top+layer.cy*photoRect.height()
+            val checked=layer.id in groupedIds
+            val p=Paint(Paint.ANTI_ALIAS_FLAG)
+            p.color=if(checked)0xFFD6BA88.toInt()else 0xFF26312B.toInt()
+            c.drawCircle(x+w*.39f,y-h*.42f,13f*density,p)
+            p.style=Paint.Style.STROKE
+            p.strokeWidth=1.6f*density
+            p.color=if(checked)0xFF273029.toInt()else 0xFFECE5D9.toInt()
+            c.drawCircle(x+w*.39f,y-h*.42f,13f*density,p)
+            if(checked){
+                p.style=Paint.Style.STROKE
+                p.strokeWidth=2.5f*density
+                p.strokeCap=Paint.Cap.ROUND
+                val check=Path().apply{
+                    moveTo(x+w*.39f-6*density,y-h*.42f)
+                    lineTo(x+w*.39f-1*density,y-h*.42f+5*density)
+                    lineTo(x+w*.39f+7*density,y-h*.42f-5*density)
+                }
+                c.drawPath(check,p)
+            }
+        }
     }
 
     private fun drawMeasurementGuides(c:Canvas){
@@ -369,8 +410,8 @@ class WallCanvasView(context: Context) : View(context) {
             // Transparent Canvas over the TextureView; match preview's view coordinates.
             photoRect.set(0f,0f,width.toFloat(),height.toFloat())
             if(showArtwork)artworks.forEach{drawArtwork(c,photoRect,it,
-                (showSelectionHandles||(focusMode&&focusHandlesVisible))&&
-                (if(groupedIds.size>=2)it.id in groupedIds else it.id==selectedId),brush)}
+                (showSelectionHandles||(focusMode&&focusHandlesVisible)||groupPicking)&&
+                (if(groupPicking||groupedIds.size>=2)it.id in groupedIds else it.id==selectedId),brush)}
         } else {
             val bound=RectF(10f*density,8f*density,width-10f*density,height-8f*density)
             photoRect.set(fit(room.width.toFloat(),room.height.toFloat(),bound))
@@ -385,6 +426,7 @@ class WallCanvasView(context: Context) : View(context) {
                 c.drawLine(sx,photoRect.top,sx,photoRect.bottom,marker)
             }
         }
+        if(groupPicking&&showArtwork)drawGroupPickMarkers(c)
         if(showMeasurements&&!perspectivePreview)drawMeasurementGuides(c)
         if(showSelectionHandles&&!focusMode)drawAlignmentGuides(c)
         if(perspectivePreview&&perspectiveFineTune&&showArtwork)drawPerspectiveHandles(c)
@@ -397,7 +439,7 @@ class WallCanvasView(context: Context) : View(context) {
         c.drawBitmap(wall,null,room,paint)
         if(!force&&!showArtwork)return
         (snapshot?.elements?:artworks).forEach{drawArtwork(c,room,it,
-            handles&&(if(groupedIds.size>=2)it.id in groupedIds else it.id==selectedId),paint)}
+            handles&&(if(groupPicking||groupedIds.size>=2)it.id in groupedIds else it.id==selectedId),paint)}
     }
     private fun artworkDimensions(layer:ArtLayer,room:RectF):Pair<Float,Float>{
         val w=layer.widthFraction*room.width()
@@ -605,6 +647,20 @@ class WallCanvasView(context: Context) : View(context) {
             return true
         }
         if(!isEnabled||!showArtwork)return super.onTouchEvent(e)
+        if(groupPicking){
+            when(e.actionMasked){
+                MotionEvent.ACTION_DOWN->{
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    return true
+                }
+                MotionEvent.ACTION_UP->{
+                    hitTest(e.x,e.y)?.let{toggleGroupById(it.id)}
+                    performClick()
+                    return true
+                }
+                else->return true
+            }
+        }
         // Group handles are live on camera and wall photo without switching canvas.
         if(groupedIds.size>=2 && !perspectivePreview) {
             when(e.actionMasked){
