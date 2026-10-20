@@ -85,4 +85,5 @@
     <string name="quick_guide">3 kolay adım: 1. Duvar fotoğrafı veya canlı kamerayı açın. 2. Eser ekleyin ve parmağınızla sürükleyin; iki parmakla boyutlandırın. 3. Perspektif için önce sekiz yön tuşundan birini, sonra gücünü seçin. Daha fazla alan için Focus View kullanın.</string>
     <string name="scroll_tools">↓ Düzenleme araçları</string>
     <string name="center_art">Eseri ortala</string>
+    <string name="quick_guide_title">Nasıl kullanılır?</string>
 </resources>
