@@ -1,4 +1,4 @@
-name: VSP Wall Studio v2.3 - Frames Fullscreen APK
+name: VSP Wall Studio 2.8 Smart Studio - Android APK
 
 on:
   push:
@@ -105,7 +105,7 @@ jobs:
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v2.3-Preview-APK
+          name: VSP-Wall-Studio-v2.8.1-Preview-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Upload unit-test reports
