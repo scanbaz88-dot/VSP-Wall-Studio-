@@ -297,6 +297,7 @@ class MainActivity : Activity() {
             addAction(button("✦ "+getString(R.string.smart_assistant),"outlined"){
                 startSmartWallAssistant()
             })
+            addAction(button("⌂ "+getString(R.string.ready_rooms),"outlined"){showRoomScenes()})
             addAction(button(getString(R.string.pick_wall), "outlined") { pickImage(REQUEST_WALL) })
             addAction(button(getString(R.string.take_photo), "outlined") { takeCameraPhoto() })
             addAction(button(getString(R.string.live_camera), "outlined") {toggleLiveCamera()}.also{cameraButton=it})
@@ -741,7 +742,8 @@ class MainActivity : Activity() {
             getString(R.string.quick_guide_title),
             getString(R.string.group_studio),
             getString(R.string.measurement_guides),
-            "✦ "+getString(R.string.smart_assistant)
+            "✦ "+getString(R.string.smart_assistant),
+            "⌂ "+getString(R.string.ready_rooms)
         )
         val dialog=AlertDialog.Builder(this)
             .setTitle(R.string.focus_settings)
@@ -768,6 +770,7 @@ class MainActivity : Activity() {
                     11->showGroupStudio()
                     12->toggleDimensions()
                     13->startSmartWallAssistant()
+                    14->showRoomScenes()
                 }
             }.setNegativeButton(R.string.cancel,null).create()
         dialog.setOnShowListener{
@@ -1123,6 +1126,7 @@ class MainActivity : Activity() {
     private fun doAssistantAction(action:SmartWallAssistantPanel.Action){
         when(action){
             SmartWallAssistantPanel.Action.PICK_WALL->pickImage(REQUEST_WALL)
+            SmartWallAssistantPanel.Action.ROOM_LIBRARY->showRoomScenes()
             SmartWallAssistantPanel.Action.LIVE_CAMERA->toggleLiveCamera()
             SmartWallAssistantPanel.Action.ADD_ART->{
                 if(canvas.artCount>=12)toast(R.string.max_art)
@@ -1553,6 +1557,43 @@ class MainActivity : Activity() {
                     ProjectStore.write(this, null, canvas.state(), canvas.showArtwork)
                 } catch (_: Exception) { /* Never block creating a fresh wall. */ }
             }.show()
+    }
+
+    /** Choose a bundled PHOTO with preserved artwork and private autosave. */
+    private fun showRoomScenes(){
+        RoomScenePicker.show(this) { scene ->
+            val open={
+                try{
+                    val photo=RoomSceneCatalog.bitmap(this,scene.id)
+                    // Save the room in internal app files so named projects reopen
+                    // after process death, even without internet or CDN access.
+                    val uri=RoomSceneCatalog.persistentUri(this,scene.id)
+                    if(liveMode)disableLiveCamera()
+                    canvas.replaceWallKeepArtwork(photo)
+                    wallUri=uri
+                    undo.clear();redo.clear()
+                    canvas.setBeforeMode(false)
+                    beforeButton.text=getString(R.string.before)
+                    syncControls()
+                    refreshSmartWallAssistant()
+                    Toast.makeText(this,
+                        getString(R.string.room_applied,scene.title(this)),
+                        Toast.LENGTH_SHORT).show()
+                    // No network call; only private metadata manifest is saved.
+                    try{ProjectStore.write(this,uri.toString(),
+                        canvas.state(),canvas.showArtwork)}catch(_:Exception){}
+                }catch(_:Exception){
+                    toast(R.string.room_library_error)
+                }
+            }
+            if(canvas.artCount>0){
+                AlertDialog.Builder(this)
+                    .setMessage(R.string.room_replace_prompt)
+                    .setNegativeButton(R.string.cancel,null)
+                    .setPositiveButton(R.string.apply){_,_->open()}
+                    .show()
+            }else open()
+        }
     }
 
     private fun pickImage(request: Int) {
