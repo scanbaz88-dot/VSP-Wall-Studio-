@@ -11,8 +11,20 @@ android {
         applicationId = "com.vintagesoulprint.wallmuse"
         minSdk = 29
         targetSdk = 36
-        versionCode = 19
-        versionName = "3.2.0"
+        versionCode = 20
+        versionName = "3.3.0"
+    }
+    // Build-time public endpoint ONLY; never bundle service account keys.
+    // Set VSP_PREMIUM_VERIFY_URL in private production CI once the backend
+    // has been deployed and Play closed-test purchases pass verification.
+    val verifierUrl = providers.environmentVariable("VSP_PREMIUM_VERIFY_URL")
+        .orElse("").get()
+    require(verifierUrl.isEmpty() || verifierUrl.startsWith("https://")) {
+        "Premium verifier URL must be HTTPS"
+    }
+    defaultConfig {
+        buildConfigField("String","PREMIUM_VERIFY_URL",
+            "\""+verifierUrl.replace("\\","\\\\").replace("\"","\\\"")+"\"")
     }
     // Shared, PUBLIC development-only debug certificate. Never use for Play releases.
     // The preview package has its own identity so existing test installations remain untouched.
@@ -40,7 +52,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { buildConfig = false }
+    buildFeatures { buildConfig = true }
     testOptions { unitTests.isReturnDefaultValues = true }
 }
 
