@@ -69,7 +69,7 @@ class LiveCamera(private val activity:Activity,private val preview:TextureView,
             val surface=Surface(st)
             val builder=camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
             builder.addTarget(surface)
-            builder.set(CaptureRequest.CONTROL_AF_MODE,CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+            builder.set(CaptureRequest.CONTROL_AF_MODE,CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
             camera.createCaptureSession(listOf(surface),object:CameraCaptureSession.StateCallback(){
                 override fun onConfigured(s:CameraCaptureSession){
                     if(device==null){s.close();return};session=s
@@ -84,11 +84,26 @@ class LiveCamera(private val activity:Activity,private val preview:TextureView,
     private fun chooseSize(id:String,w:Int,h:Int):Size{
         val chars=manager.getCameraCharacteristics(id)
         val map=chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-        val sizes=map?.getOutputSizes(SurfaceTexture::class.java)?.toList()?:return Size(1280,720)
+        val sizes=map?.getOutputSizes(SurfaceTexture::class.java)?.toList()
+            ?.filter{it.width>0&&it.height>0}?:return Size(1920,1080)
         val desired=max(w,h).toFloat()/max(1,min(w,h))
-        return sizes.filter{it.width<=1920&&it.height<=1080}.minByOrNull{
-            abs(it.width.toFloat()/it.height-desired)*1200+abs(it.width-1280)*.02
-        }?:sizes.first()
+        // Prefer a sharp, landscape 1080p stream. Avoid the device's first,
+        // frequently tiny stream which becomes badly blurred in fullscreen.
+        val bounded=sizes.filter{
+            val long=max(it.width,it.height)
+            val short=min(it.width,it.height)
+            long<=1920&&short<=1080&&long>=1280
+        }.ifEmpty{
+            sizes.filter{max(it.width,it.height)<=1920}
+        }.ifEmpty{sizes}
+        return bounded.minByOrNull{
+            val long=max(it.width,it.height)
+            val short=min(it.width,it.height)
+            val ratio=long.toFloat()/short.coerceAtLeast(1)
+            val area=it.width.toLong()*it.height.toLong()
+            abs(ratio-desired)*1300f+
+                ((2073600L-area).coerceAtLeast(0L)/100000f)
+        }?:Size(1920,1080)
     }
 
     @Suppress("DEPRECATION")
@@ -99,38 +114,26 @@ class LiveCamera(private val activity:Activity,private val preview:TextureView,
     }
 
     /**
-     * TextureView initially non-uniformly maps the raw landscape camera buffer
-     * to the view bounds. Cancel that distortion, rotate by the actual sensor
-     * metadata relative to screen, and center-cover preserving original ratio.
-     * Matrix is in TextureView's VIEW coordinates, not buffer-pixel coordinates.
+     * TextureView already applies natural sensor orientation. Only the DISPLAY
+     * rotation and a physical-pixel-correct center crop are required here.
+     * IMPORTANT: never add SENSOR_ORIENTATION or +270 again; that was the V2.6
+     * stretch/zoom bug. Layout changes call this function again without opening
+     * or restarting the camera, preserving the active session in Focus View.
      */
     private fun configureTransform(w:Int,h:Int){
-        val size=previewSize ?:return
-        val id=cameraId ?:return
+        val size=previewSize?:return
+        val id=cameraId?:return
         if(w<=0||h<=0)return
-        val chars=manager.getCameraCharacteristics(id)
-        val sensor=chars.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
-        val front=chars.get(CameraCharacteristics.LENS_FACING)==CameraCharacteristics.LENS_FACING_FRONT
-        // V2.2.1: The previous correction left the rear camera upside-down
-        // on the tested handset. Apply the requested additional 180 degrees
-        // automatically, without an on-screen rotation control.
-        // This maps the old +90 correction to +270 (modulo 360).
-        val degrees=((if(front) sensor+displayDegrees() else sensor-displayDegrees())+270+720)%360
-        val rotated=degrees==90||degrees==270
-        val sourceWidth=if(rotated)size.height.toFloat() else size.width.toFloat()
-        val sourceHeight=if(rotated)size.width.toFloat() else size.height.toFloat()
-        val cover=max(w/sourceWidth,h/sourceHeight)
-        val scaleX=cover*size.width/w
-        val scaleY=cover*size.height/h
-        val cx=w/2f;val cy=h/2f
-        val values=when(degrees){
-            90->floatArrayOf(0f,-scaleY,cx+scaleY*cy,scaleX,0f,cy-scaleX*cx,0f,0f,1f)
-            180->floatArrayOf(-scaleX,0f,cx*(1+scaleX),0f,-scaleY,cy*(1+scaleY),0f,0f,1f)
-            270->floatArrayOf(0f,scaleY,cx-scaleY*cy,-scaleX,0f,cy+scaleX*cx,0f,0f,1f)
-            else->floatArrayOf(scaleX,0f,cx*(1-scaleX),0f,scaleY,cy*(1-scaleY),0f,0f,1f)
-        }
-        val transform=Matrix();transform.setValues(values)
-        preview.setTransform(transform)
+        try{
+            val chars=manager.getCameraCharacteristics(id)
+            val sensor=chars.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
+            val transformData=CameraPreviewMath.create(
+                size.width,size.height,w,h,sensor,displayDegrees()
+            )
+            preview.setTransform(Matrix().apply{
+                setValues(transformData.values)
+            })
+        }catch(e:Exception){onError("Preview geometry: ${e.message}")}
     }
 
     fun stop(){requested=false;running=false
