@@ -34,5 +34,22 @@ object PremiumPolicy {
         availableFrames=freeFrameIds
     )
     /** Never paywall a completed draft while entitlement restoration is pending. */
+    /** Payments are deliberately unavailable until the real backend is deployed. */
+    const val PLAY_PRODUCT_CONFIGURED = false
+    const val SECURE_VERIFIER_CONFIGURED = false
+    enum class PaymentState { NONE, PENDING, PURCHASED, CANCELLED, REFUNDED }
+    data class ReceiptValidation(
+        val state:PaymentState,
+        val serverVerified:Boolean,
+        val correctProduct:Boolean,
+        val revoked:Boolean
+    )
+    fun hasVerifiedLifetimeAccess(r:ReceiptValidation):Boolean =
+        r.state==PaymentState.PURCHASED && r.serverVerified &&
+        r.correctProduct && !r.revoked
+    /** Never accept cached Android preferences as a payment authorization. */
+    fun checkoutEnabled(debugPreview:Boolean)=
+        !debugPreview && PLAY_PRODUCT_CONFIGURED && SECURE_VERIFIER_CONFIGURED
+    fun validPlayPrice(value:String?):String?=value?.takeIf{it.isNotBlank()}
     fun mayOpenExistingProject(saved:Boolean)=saved
 }
