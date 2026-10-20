@@ -4,68 +4,56 @@ import android.content.Context
 import android.graphics.*
 import android.view.View
 import kotlin.math.min
+import kotlin.math.max
 
-/** Fast in-app frame library thumbnails without external assets. */
-class FrameSwatchView(context: Context,private val style:Int):View(context){
-    private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
-    override fun onDraw(c:Canvas){super.onDraw(c)
-        val photo=FramePhotoLibrary.info(style)
-        if (photo!=null) {
-            // Render the real image asset in the library thumbnail, not a
-            // placeholder gradient swatch from the old frame library.
-            c.drawColor(0xFFF0ECE5.toInt())
-            val bmp=FramePhotoLibrary.bitmap(context,style)
-            if (bmp!=null) {
-                val pad=5f*resources.displayMetrics.density
-                val scale=min((width-2f*pad)/bmp.width,(height-2f*pad)/bmp.height)
-                val ow=bmp.width*scale;val oh=bmp.height*scale
-                val outer=RectF((width-ow)*.5f,(height-oh)*.5f,
-                    (width+ow)*.5f,(height+oh)*.5f)
-                val inner=FramePhotoLibrary.innerBounds(outer,photo)
-                paint.shader=LinearGradient(inner.left,inner.top,inner.right,inner.bottom,
-                    0xFFD3C6AD.toInt(),0xFF726E63.toInt(),Shader.TileMode.CLAMP)
-                c.save()
-                if(photo.oval) {
-                    val path=Path().apply{addOval(inner,Path.Direction.CW)}
-                    c.clipPath(path)
-                } else c.clipRect(inner)
-                c.drawRect(inner,paint)
-                c.restore()
-                paint.shader=null
-                FramePhotoLibrary.draw(c,context,style,inner,outer,paint)
-            }
-            return
+/** The picker renders with the SAME native frame engine as the wall canvas. */
+class FrameSwatchView(context:Context,private val frame:Int):View(context) {
+    override fun onDraw(c:Canvas) {
+        super.onDraw(c)
+        c.drawColor(0xFFF0ECE5.toInt())
+        val density=resources.displayMetrics.density
+        val pad=9f*density
+        val ratio=if(FrameEngine.isRound(frame))1f else
+            if(FrameEngine.isOval(frame)) .75f else .82f
+        val availableW=max(1f,width-2f*pad)
+        val availableH=max(1f,height-2f*pad)
+        val h=min(availableH,availableW/ratio)
+        val w=h*ratio
+        val inner=RectF((width-w)*.5f,(height-h)*.5f,
+            (width+w)*.5f,(height+h)*.5f)
+        val outer=FrameEngine.exterior(inner,frame,55f)
+        val frameShadow=Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color=0x26504936;setShadowLayer(2.5f*density,0f,1.2f*density,0x4441372A)
         }
-        val pad=8*resources.displayMetrics.density
-        c.drawColor(0xFFE5DCCB.toInt())
-        val ratio=if(FrameCatalog.isRound(style))1f else 1.33f
-        val h=height-2*pad;val w=min(width-2*pad,h*ratio)
-        val outer=RectF((width-w)*.5f,(height-h)*.5f,(width+w)*.5f,(height+h)*.5f)
-        val border=if(style==0)0f else if(FrameCatalog.isOrnate(style))w*.11f else w*.067f
-        val inner=RectF(outer.left+border,outer.top+border,outer.right-border,outer.bottom-border)
-        val rounded=FrameCatalog.isOval(style)||FrameCatalog.isRound(style)
-        paint.shader=LinearGradient(outer.left,outer.top,outer.right,outer.bottom,
-            colors(style),null,Shader.TileMode.CLAMP)
-        if(rounded)c.drawOval(outer,paint)else c.drawRoundRect(outer,2f,2f,paint)
-        paint.shader=null
-        val clip=Path().apply {if(rounded)addOval(inner,Path.Direction.CW)else addRect(inner,Path.Direction.CW)}
-        c.save();c.clipPath(clip)
-        paint.color=0xFFAEA98E.toInt();c.drawRect(inner,paint)
-        paint.color=0xFF68746A.toInt();c.drawRect(inner.left,inner.centerY(),inner.right,inner.bottom,paint)
-        paint.color=0xFF7C4C35.toInt();c.drawCircle(inner.left+inner.width()*.71f,inner.top+inner.height()*.23f,inner.width()*.12f,paint)
-        paint.color=0xFF334F44.toInt()
-        val path=Path().apply {moveTo(inner.left,inner.bottom);lineTo(inner.centerX(),inner.top+inner.height()*.28f)
-            lineTo(inner.right,inner.bottom);close()}
-        c.drawPath(path,paint);c.restore()
-    }
-    private fun colors(style:Int)=when(style){
-        0->intArrayOf(0xFFE5DCCB.toInt(),0xFFE5DCCB.toInt())
-        2,10->intArrayOf(0xFF101212.toInt(),0xFF5D6260.toInt())
-        4,11->intArrayOf(0xFF947E65.toInt(),0xFFF2E6CF.toInt())
-        3->intArrayOf(0xFF876547.toInt(),0xFFDFC093.toInt())
-        5,6,7,8,16->intArrayOf(0xFF705027.toInt(),0xFFE3C075.toInt())
-        14->intArrayOf(0xFF4D5254.toInt(),0xFFE2DFDB.toInt())
-        12,13->intArrayOf(0xFF161615.toInt(),0xFF77654D.toInt())
-        else->intArrayOf(0xFF342219.toInt(),0xFFAD8055.toInt())
+        c.save()
+        c.clipRect(RectF(0f,0f,width.toFloat(),height.toFloat()))
+        c.drawRect(outer,frameShadow)
+        // Restrained generic painting remains inside the frame aperture.
+        val p=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        val oval=FrameEngine.isOval(frame)||FrameEngine.isRound(frame)
+        val aperture=Path().apply {
+            if(oval)addOval(inner,Path.Direction.CW)
+            else addRect(inner,Path.Direction.CW)
+        }
+        c.save();c.clipPath(aperture)
+        p.shader=LinearGradient(inner.left,inner.top,inner.right,inner.bottom,
+            intArrayOf(0xFFE1D7C2.toInt(),0xFFA7B0A1.toInt(),0xFF9D8171.toInt()),
+            null,Shader.TileMode.CLAMP)
+        c.drawRect(inner,p);p.shader=null
+        p.color=0xFF647667.toInt()
+        val landscape=Path().apply {
+            moveTo(inner.left,inner.bottom)
+            lineTo(inner.left+inner.width()*.31f,inner.top+inner.height()*.52f)
+            lineTo(inner.left+inner.width()*.53f,inner.top+inner.height()*.66f)
+            lineTo(inner.left+inner.width()*.77f,inner.top+inner.height()*.33f)
+            lineTo(inner.right,inner.bottom);close()
+        }
+        c.drawPath(landscape,p)
+        p.color=0xFFD2AD7D.toInt()
+        c.drawCircle(inner.left+inner.width()*.77f,inner.top+inner.height()*.24f,
+            inner.width()*.074f,p)
+        c.restore()
+        FrameEngine.draw(c,inner,frame,55f)
+        c.restore()
     }
 }
