@@ -32,6 +32,12 @@ class WallCanvasView(context: Context) : View(context) {
     var focusMode=false
         set(value){field=value;focusHandlesVisible=false;invalidate()}
     private var focusHandlesVisible=false
+    /** Direct-on-wall perspective tuning. Never exported with screenshots. */
+    var perspectivePreview=false
+        set(value){field=value;if(!value)perspectiveFineTune=false;invalidate()}
+    var perspectiveFineTune=false
+        set(value){field=value;invalidate()}
+    private var activePerspectiveCorner=-1
     private val hideFocusHandles=Runnable {focusHandlesVisible=false;invalidate()}
     private fun perspective(layer:ArtLayer):FloatArray=floatArrayOf(
         layer.tlx,layer.tly,layer.trx,layer.tryY,
@@ -176,6 +182,7 @@ class WallCanvasView(context: Context) : View(context) {
             photoRect.set(fit(room.width.toFloat(),room.height.toFloat(),bound))
             renderScene(c,photoRect,showArtwork&&(showSelectionHandles||(focusMode&&focusHandlesVisible)))
         }
+        if(perspectivePreview&&perspectiveFineTune&&showArtwork)drawPerspectiveHandles(c)
     }
     private fun fit(w:Float,h:Float,b:RectF):RectF {val s=min(b.width()/w,b.height()/h);val aw=w*s;val ah=h*s
         return RectF(b.centerX()-aw/2,b.centerY()-ah/2,b.centerX()+aw/2,b.centerY()+ah/2)}
@@ -282,6 +289,66 @@ class WallCanvasView(context: Context) : View(context) {
         c.drawRoundRect(RectF(inner.left+1,inner.top+1,inner.right-1,inner.bottom-1),1f,1f,p)
         p.style=Paint.Style.FILL
     }
+    private fun perspectiveBounds(l:ArtLayer):RectF{
+        val(w,h)=artworkDimensions(l,photoRect)
+        val cx=photoRect.left+l.cx*photoRect.width()
+        val cy=photoRect.top+l.cy*photoRect.height()
+        return FrameEngine.exterior(RectF(cx-w/2,cy-h/2,cx+w/2,cy+h/2),l.frame,l.printW)
+    }
+    private fun mapPerspectivePoint(l:ArtLayer,x:Float,y:Float):Pair<Float,Float>{
+        val cx=photoRect.left+l.cx*photoRect.width()
+        val cy=photoRect.top+l.cy*photoRect.height()
+        val r=Math.toRadians(l.angle.toDouble())
+        val dx=x-cx;val dy=y-cy
+        return Pair(
+            cx+dx*cos(r).toFloat()-dy*sin(r).toFloat(),
+            cy+dx*sin(r).toFloat()+dy*cos(r).toFloat()
+        )
+    }
+    private fun cornerPositions(l:ArtLayer):FloatArray {
+        val b=perspectiveBounds(l)
+        val p=perspective(l)
+        val out=FloatArray(8)
+        for(i in 0..3){
+            val (x,y)=mapPerspectivePoint(l,b.left+b.width()*p[2*i],
+                b.top+b.height()*p[2*i+1])
+            out[2*i]=x;out[2*i+1]=y
+        }
+        return out
+    }
+    private fun drawPerspectiveHandles(c:Canvas){
+        val l=selected?:return
+        val pts=cornerPositions(l)
+        val guide=Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style=Paint.Style.STROKE;strokeWidth=1.8f*density;color=0xFFD6BA88.toInt()
+        }
+        val path=Path().apply{
+            moveTo(pts[0],pts[1])
+            for(i in 1..3)lineTo(pts[2*i],pts[2*i+1])
+            close()
+        }
+        c.drawPath(path,guide)
+        guide.style=Paint.Style.FILL
+        for(i in 0..3){
+            guide.color=0xFF1C2420.toInt()
+            c.drawCircle(pts[2*i],pts[2*i+1],10f*density,guide)
+            guide.color=0xFFD6BA88.toInt()
+            c.drawCircle(pts[2*i],pts[2*i+1],7f*density,guide)
+        }
+    }
+    private fun setCornerByTouch(l:ArtLayer,index:Int,x:Float,y:Float){
+        val bounds=perspectiveBounds(l)
+        val cx=photoRect.left+l.cx*photoRect.width()
+        val cy=photoRect.top+l.cy*photoRect.height()
+        val rad=Math.toRadians(l.angle.toDouble())
+        val dx=x-cx;val dy=y-cy
+        val ux=cx+dx*cos(rad).toFloat()+dy*sin(rad).toFloat()
+        val uy=cy-dx*sin(rad).toFloat()+dy*cos(rad).toFloat()
+        val updated=perspective(l)
+        updated[2*index]=((ux-bounds.left)/bounds.width()).coerceIn(-.35f,1.35f)
+        updated[2*index+1]=((uy-bounds.top)/bounds.height()).coerceIn(-.35f,1.35f)
+        if(PerspectiveGeometry.valid(updated))setPerspective(updated)
+    }
     private fun hitTest(x:Float,y:Float):ArtLayer?{
         for(i in artworks.size-1 downTo 0){
             val l=artworks[i]
@@ -306,6 +373,39 @@ class WallCanvasView(context: Context) : View(context) {
     }
     override fun onTouchEvent(e:MotionEvent):Boolean{
         if(!isEnabled||!showArtwork)return super.onTouchEvent(e)
+        if(perspectivePreview){
+            when(e.actionMasked){
+                MotionEvent.ACTION_DOWN->{
+                    activePerspectiveCorner=-1
+                    if(perspectiveFineTune){
+                        val l=selected
+                        if(l!=null){
+                            val pts=cornerPositions(l)
+                            val nearest=(0..3).minByOrNull { idx->
+                                hypot(e.x-pts[2*idx],e.y-pts[2*idx+1])
+                            }
+                            if(nearest!=null&&hypot(e.x-pts[2*nearest],e.y-pts[2*nearest+1])<32f*density){
+                                activePerspectiveCorner=nearest
+                                parent?.requestDisallowInterceptTouchEvent(true)
+                            }
+                        }
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_MOVE->{
+                    if(activePerspectiveCorner>=0&&e.pointerCount==1){
+                        selected?.let{setCornerByTouch(it,activePerspectiveCorner,e.x,e.y)}
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_UP,MotionEvent.ACTION_CANCEL->{
+                    activePerspectiveCorner=-1
+                    performClick()
+                    return true
+                }
+                else->return true
+            }
+        }
         when(e.actionMasked){
             MotionEvent.ACTION_DOWN->{val picked=hitTest(e.x,e.y);selectedId=picked?.id
                 touchX=e.x;touchY=e.y;originalX=picked?.cx?:0f;originalY=picked?.cy?:0f
