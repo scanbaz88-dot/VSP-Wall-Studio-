@@ -20,16 +20,16 @@
     {
       "id": "room_02",
       "category": "living",
-      "photo_id": 19878535,
-      "title_en": "Warm Beige Wall",
-      "title_tr": "Sıcak Bej Duvar",
-      "photographer": "Lisa Anna",
-      "photo_url": "https://www.pexels.com/photo/chairs-and-table-by-beige-wall-in-living-room-19878535/",
+      "photo_id": 7059748,
+      "title_en": "Warm Neutral Console Wall",
+      "title_tr": "Sıcak Nötr Konsol Duvarı",
+      "photographer": "Елена",
+      "photo_url": "https://www.pexels.com/photo/green-plants-in-white-ceramic-vases-on-brown-console-table-7059748/",
       "free": false,
       "anchor": [
-        0.67,
-        0.2,
-        0.16
+        0.52,
+        0.35,
+        0.31
       ]
     },
     {
@@ -155,16 +155,16 @@
     {
       "id": "room_11",
       "category": "dining",
-      "photo_id": 19966784,
-      "title_en": "Open Plan Dining Wall",
-      "title_tr": "Açık Plan Yemek Duvarı",
-      "photographer": "Alex Tyson",
-      "photo_url": "https://www.pexels.com/photo/spacious-interior-with-a-wooden-floor-and-a-coffee-table-19966784/",
+      "photo_id": 3104527,
+      "title_en": "Industrial Dining Wall",
+      "title_tr": "Endüstriyel Yemek Duvarı",
+      "photographer": "Vicky Tran",
+      "photo_url": "https://www.pexels.com/photo/round-brown-dining-table-near-brown-couch-3104527/",
       "free": true,
       "anchor": [
-        0.66,
-        0.29,
-        0.18
+        0.7,
+        0.39,
+        0.25
       ]
     },
     {
@@ -185,16 +185,16 @@
     {
       "id": "room_13",
       "category": "dining",
-      "photo_id": 19846386,
-      "title_en": "Organic Wood Dining",
-      "title_tr": "Doğal Ahşap Yemek Odası",
-      "photographer": "Lisa Anna",
-      "photo_url": "https://www.pexels.com/photo/wooden-table-and-chairs-in-a-modern-dining-room-19846386/",
+      "photo_id": 6956843,
+      "title_en": "Bright Brick Dining Kitchen",
+      "title_tr": "Aydınlık Tuğla Yemek Mutfağı",
+      "photographer": "Max Vakhtbovych",
+      "photo_url": "https://www.pexels.com/photo/modern-kitchen-interior-with-furniture-and-shiny-chandelier-6956843/",
       "free": false,
       "anchor": [
-        0.67,
-        0.19,
-        0.15
+        0.83,
+        0.37,
+        0.2
       ]
     },
     {
