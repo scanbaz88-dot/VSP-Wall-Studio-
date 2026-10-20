@@ -1,6 +1,8 @@
 package com.vintagesoulprint.wallmuse
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.AtomicFile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -62,6 +64,25 @@ object ProjectLibrary {
         catch(e:Exception){File(context.filesDir,filename(id)).delete();throw e}
         return entry
     }
+    /** Small private JPEG cover; full-size source images remain at source URIs. */
+    private fun thumbnail(context:Context,id:String)=File(context.filesDir,"thumb_${id}.jpg")
+    fun putThumbnail(context:Context,id:String,image:Bitmap){
+        val atom=AtomicFile(thumbnail(context,id))
+        val stream=atom.startWrite()
+        try{
+            if(!image.compress(Bitmap.CompressFormat.JPEG,80,stream))
+                throw IllegalStateException("Thumbnail compression failed")
+            atom.finishWrite(stream)
+        }catch(e:Exception){
+            atom.failWrite(stream)
+            throw e
+        }
+    }
+    fun getThumbnail(context:Context,id:String):Bitmap?{
+        val file=thumbnail(context,id)
+        if(!file.exists())return null
+        return try{BitmapFactory.decodeFile(file.path)}catch(_:Exception){null}
+    }
     fun open(context:Context,id:String):ProjectStore.Draft? =
         ProjectStore.read(context,filename(id))
     fun delete(context:Context,id:String) {
@@ -69,6 +90,7 @@ object ProjectLibrary {
         val after=before.filterNot{it.id==id}
         writeIndex(context,after)
         File(context.filesDir,filename(id)).delete()
+        thumbnail(context,id).delete()
     }
     fun rename(context:Context,id:String,name:String) {
         if(name.isBlank())return
