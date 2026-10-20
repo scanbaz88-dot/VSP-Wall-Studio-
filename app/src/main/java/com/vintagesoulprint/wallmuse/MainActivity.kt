@@ -929,7 +929,15 @@ class MainActivity : Activity() {
                     addView(sample, LinearLayout.LayoutParams(-1,dp(76)))
                     addView(label(FrameCatalog.displayName(index),11f,BG).apply { gravity=Gravity.CENTER;maxLines=2 },
                         LinearLayout.LayoutParams(-1,dp(37)))
-                    setOnClickListener {checkpoint();canvas.setFrame(index);syncControls();dialog.dismiss()}
+                    setOnClickListener {
+                        if(!BuildConfig.DEBUG && !PremiumSession.verified &&
+                            index !in PremiumPolicy.freeFrameIds){
+                            dialog.dismiss()
+                            showPremiumCenter()
+                        }else{
+                            checkpoint();canvas.setFrame(index);syncControls();dialog.dismiss()
+                        }
+                    }
                 }
                 grid.addView(col,GridLayout.LayoutParams().apply {
                     width=dp(140);height=dp(125);setMargins(dp(3),dp(3),dp(3),dp(3))
@@ -943,7 +951,10 @@ class MainActivity : Activity() {
     private fun randomFrame() {
         if (canvas.selected == null) { toast(R.string.no_selection); return }
         val current = canvas.selected!!.frame
-        val alternatives = FrameCatalog.frames.indices.filter { it != current }
+        val alternatives = FrameCatalog.frames.indices.filter {
+            it!=current && (BuildConfig.DEBUG || PremiumSession.verified ||
+                it in PremiumPolicy.freeFrameIds)
+        }
         checkpoint();canvas.setFrame(alternatives.random());syncControls()
     }
 
@@ -1386,7 +1397,10 @@ class MainActivity : Activity() {
         panel.addView(button(getString(R.string.premium_restore),"outlined"){
             premiumBilling?.restore()
         },LinearLayout.LayoutParams(-1,dp(46)))
-        panel.addView(line(getString(R.string.premium_no_payment),11f))
+        panel.addView(line(
+            if(PremiumPolicy.checkoutEnabled(BuildConfig.DEBUG))
+                getString(R.string.premium_secure_checkout)
+            else getString(R.string.premium_no_payment),11f))
         val scroll=ScrollView(this).apply{addView(panel)}
         val dialog=AlertDialog.Builder(this)
             .setTitle(R.string.premium_center)
@@ -1425,6 +1439,10 @@ class MainActivity : Activity() {
         val art=canvas.selected?:run{toast(R.string.no_selection);return}
         val recommendation=try{FrameAdvisor.suggest(art.bitmap)}catch(_:Exception){null}
             ?:return
+        if(!BuildConfig.DEBUG && !PremiumSession.verified &&
+            recommendation.frameId !in PremiumPolicy.freeFrameIds){
+            showPremiumCenter();return
+        }
         val frameName=FrameCatalog.displayName(recommendation.frameId)
         AlertDialog.Builder(this)
             .setTitle(R.string.auto_frame)
@@ -1566,6 +1584,12 @@ class MainActivity : Activity() {
             }.setNegativeButton(R.string.cancel,null).show()
     }
     private fun promptSaveProject(){
+        if(!BuildConfig.DEBUG && !PremiumSession.verified &&
+            ProjectLibrary.list(this).size>=PremiumPolicy.FREE_MAX_SAVED_PROJECTS){
+            Toast.makeText(this,getString(R.string.premium_limit_projects),Toast.LENGTH_LONG).show()
+            showPremiumCenter()
+            return
+        }
         val input=EditText(this).apply{
             setSingleLine(true)
             setText(getString(R.string.default_project_name))
@@ -1875,7 +1899,10 @@ class MainActivity : Activity() {
             var bitmap: Bitmap? = null
             var result: Uri? = null
             try {
-                bitmap = canvas.exportBitmap(renderSnapshot,maxEdge.coerceIn(540,3840))
+                val allowedMax=if(BuildConfig.DEBUG || PremiumSession.verified)
+                    PremiumPolicy.PREMIUM_EXPORT_LONG_EDGE
+                    else PremiumPolicy.FREE_MAX_EXPORT_LONG_EDGE
+                bitmap = canvas.exportBitmap(renderSnapshot,maxEdge.coerceIn(540,allowedMax))
                 result = writeImage(bitmap,png)
             } catch (_: Throwable) {
                 // MediaStore is rolled back by writeJpeg when its output operation fails.
