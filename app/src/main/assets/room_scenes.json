@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "license_url": "https://www.pexels.com/license/",
+  "scenes": [
+    {
+      "id": "room_01",
+      "category": "living",
+      "photo_id": 7160605,
+      "title_en": "Beige Sofa Corner",
+      "title_tr": "Bej Koltuk Köşesi",
+      "photographer": "Dorin Ursulescu",
+      "photo_url": "https://www.pexels.com/photo/a-beige-sofa-in-the-living-room-7160605/",
+      "free": true
+    },
+    {
+      "id": "room_02",
+      "category": "living",
+      "photo_id": 19878535,
+      "title_en": "Warm Beige Wall",
+      "title_tr": "Sıcak Bej Duvar",
+      "photographer": "Lisa Anna",
+      "photo_url": "https://www.pexels.com/photo/chairs-and-table-by-beige-wall-in-living-room-19878535/",
+      "free": false
+    },
+    {
+      "id": "room_03",
+      "category": "living",
+      "photo_id": 7101235,
+      "title_en": "White Sofa & Plant",
+      "title_tr": "Beyaz Koltuk ve Bitki",
+      "photographer": "Furknsaglam",
+      "photo_url": "https://www.pexels.com/photo/interior-of-living-room-with-couch-near-potted-plant-7101235/",
+      "free": false
+    },
+    {
+      "id": "room_04",
+      "category": "living",
+      "photo_id": 6914713,
+      "title_en": "Sunlit Cozy Lounge",
+      "title_tr": "Gün Işıklı Salon",
+      "photographer": "Aleks Michajlowicz",
+      "photo_url": "https://www.pexels.com/photo/a-cozy-couch-near-the-window-and-plants-6914713/",
+      "free": false
+    },
+    {
+      "id": "room_05",
+      "category": "living",
+      "photo_id": 7836572,
+      "title_en": "Scandinavian Green",
+      "title_tr": "İskandinav Yeşili",
+      "photographer": "Stanislav Kondratiev",
+      "photo_url": "https://www.pexels.com/photo/indoor-plants-inside-the-living-room-7836572/",
+      "free": false
+    },
+    {
+      "id": "room_06",
+      "category": "living",
+      "photo_id": 6044718,
+      "title_en": "Brick Wall Lounge",
+      "title_tr": "Tuğla Duvarlı Salon",
+      "photographer": "Skylar Kang",
+      "photo_url": "https://www.pexels.com/photo/living-room-interior-at-home-in-sunlight-6044718/",
+      "free": false
+    },
+    {
+      "id": "room_07",
+      "category": "bedroom",
+      "photo_id": 36816994,
+      "title_en": "Natural Light Bedroom",
+      "title_tr": "Doğal Işıklı Yatak Odası",
+      "photographer": "Peter Vang",
+      "photo_url": "https://www.pexels.com/photo/cozy-minimalist-bedroom-with-natural-light-36816994/",
+      "free": true
+    },
+    {
+      "id": "room_08",
+      "category": "bedroom",
+      "photo_id": 14101565,
+      "title_en": "Soft Linen Bedroom",
+      "title_tr": "Yumuşak Keten Oda",
+      "photographer": "Natalia Walusiak",
+      "photo_url": "https://www.pexels.com/photo/interior-of-cozy-bedroom-14101565/",
+      "free": false
+    },
+    {
+      "id": "room_09",
+      "category": "bedroom",
+      "photo_id": 32058085,
+      "title_en": "White Brick Bedroom",
+      "title_tr": "Beyaz Tuğla Yatak Odası",
+      "photographer": "♡ julieee",
+      "photo_url": "https://www.pexels.com/photo/cozy-minimalist-bedroom-with-white-brick-wall-32058085/",
+      "free": false
+    },
+    {
+      "id": "room_10",
+      "category": "bedroom",
+      "photo_id": 35229094,
+      "title_en": "Warm Neutral Bedroom",
+      "title_tr": "Sıcak Nötr Yatak Odası",
+      "photographer": "Pușcaș Adryan",
+      "photo_url": "https://www.pexels.com/photo/modern-minimalist-bedroom-with-natural-light-35229094/",
+      "free": false
+    },
+    {
+      "id": "room_11",
+      "category": "dining",
+      "photo_id": 11125419,
+      "title_en": "Bright Dining Nook",
+      "title_tr": "Aydınlık Yemek Köşesi",
+      "photographer": "Curtis Adams",
+      "photo_url": "https://www.pexels.com/photo/modern-dining-room-11125419/",
+      "free": true
+    },
+    {
+      "id": "room_12",
+      "category": "dining",
+      "photo_id": 17860417,
+      "title_en": "White Chairs Dining",
+      "title_tr": "Beyaz Sandalyeli Yemek Odası",
+      "photographer": "Sofía Nuñez",
+      "photo_url": "https://www.pexels.com/photo/interior-of-a-modern-dining-room-17860417/",
+      "free": false
+    },
+    {
+      "id": "room_13",
+      "category": "dining",
+      "photo_id": 19846386,
+      "title_en": "Organic Wood Dining",
+      "title_tr": "Doğal Ahşap Yemek Odası",
+      "photographer": "Lisa Anna",
+      "photo_url": "https://www.pexels.com/photo/wooden-table-and-chairs-in-a-modern-dining-room-19846386/",
+      "free": false
+    },
+    {
+      "id": "room_14",
+      "category": "dining",
+      "photo_id": 7195894,
+      "title_en": "Window Dining Table",
+      "title_tr": "Pencere Yanı Yemek Masası",
+      "photographer": "Max Vakhtbovych",
+      "photo_url": "https://www.pexels.com/photo/table-in-dining-room-in-apartment-7195894/",
+      "free": false
+    },
+    {
+      "id": "room_15",
+      "category": "hallway",
+      "photo_id": 7533920,
+      "title_en": "Calm White Hallway",
+      "title_tr": "Sakin Beyaz Koridor",
+      "photographer": "Max Vakhtbovych",
+      "photo_url": "https://www.pexels.com/photo/empty-white-corridor-in-apartment-7533920/",
+      "free": true
+    },
+    {
+      "id": "room_16",
+      "category": "hallway",
+      "photo_id": 22619753,
+      "title_en": "Windowlight Passage",
+      "title_tr": "Pencere Işıklı Geçit",
+      "photographer": "Yusuf Eser",
+      "photo_url": "https://www.pexels.com/photo/interior-of-an-empty-hallway-22619753/",
+      "free": false
+    },
+    {
+      "id": "room_17",
+      "category": "hallway",
+      "photo_id": 8128155,
+      "title_en": "Sunny Minimal Corridor",
+      "title_tr": "Güneşli Sade Koridor",
+      "photographer": "Alfin Auzikri",
+      "photo_url": "https://www.pexels.com/photo/an-empty-corridor-8128155/",
+      "free": false
+    },
+    {
+      "id": "room_18",
+      "category": "office",
+      "photo_id": 8004011,
+      "title_en": "Minimal Home Workspace",
+      "title_tr": "Minimal Ev Çalışma Alanı",
+      "photographer": "Darina Belonogova",
+      "photo_url": "https://www.pexels.com/photo/minimalist-design-of-a-home-office-8004011/",
+      "free": true
+    },
+    {
+      "id": "room_19",
+      "category": "office",
+      "photo_id": 6000854,
+      "title_en": "Contemporary Desk",
+      "title_tr": "Çağdaş Çalışma Masası",
+      "photographer": "Carlos Montelara",
+      "photo_url": "https://www.pexels.com/photo/minimal-interior-design-of-a-home-office-workplace-6000854/",
+      "free": false
+    },
+    {
+      "id": "room_20",
+      "category": "office",
+      "photo_id": 18495291,
+      "title_en": "Moody Study Corner",
+      "title_tr": "Loş Çalışma Köşesi",
+      "photographer": "Soulkid Photography",
+      "photo_url": "https://www.pexels.com/photo/desk-with-computer-in-the-office-18495291/",
+      "free": false
+    },
+    {
+      "id": "room_21",
+      "category": "studio",
+      "photo_id": 6835181,
+      "title_en": "Wide Open Room",
+      "title_tr": "Geniş Boş Oda",
+      "photographer": "Curtis Adams",
+      "photo_url": "https://www.pexels.com/photo/room-with-beige-wall-and-big-glass-windows-with-wooden-flooring-6835181/",
+      "free": true
+    },
+    {
+      "id": "room_22",
+      "category": "studio",
+      "photo_id": 3935349,
+      "title_en": "Sunlit Wooden Dresser",
+      "title_tr": "Güneşli Ahşap Şifonyer",
+      "photographer": "Curtis Adams",
+      "photo_url": "https://www.pexels.com/photo/photo-of-an-empty-room-3935349/",
+      "free": false
+    },
+    {
+      "id": "room_23",
+      "category": "studio",
+      "photo_id": 18707513,
+      "title_en": "Golden Floor Shadows",
+      "title_tr": "Altın Tonlu Zemin Gölgeleri",
+      "photographer": "sanket mahind",
+      "photo_url": "https://www.pexels.com/photo/shadow-of-a-window-frame-on-the-wood-flooring-of-an-empty-room-18707513/",
+      "free": false
+    },
+    {
+      "id": "room_24",
+      "category": "studio",
+      "photo_id": 13702811,
+      "title_en": "Architectural Arches",
+      "title_tr": "Mimari Kemerler",
+      "photographer": "Daniel Tanque",
+      "photo_url": "https://www.pexels.com/photo/a-big-empty-room-with-wooden-flooring-13702811/",
+      "free": false
+    }
+  ]
+}
