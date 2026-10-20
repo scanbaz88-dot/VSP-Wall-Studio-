@@ -73,6 +73,7 @@ class MainActivity : Activity() {
     private lateinit var bottom: LinearLayout
     private lateinit var sizeSlider: SeekBar
     private lateinit var focusToolbar: LinearLayout
+    private lateinit var focusHeaderLabel: TextView
     private lateinit var focusSizeLabel: TextView
     private lateinit var sizeValue: TextView
     private lateinit var angleValue: TextView
@@ -275,6 +276,17 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams(-2,dp(44),Gravity.TOP or Gravity.END).apply {
                 setMargins(dp(8),dp(14),dp(12),dp(8))
             })
+        val focusHeader=label("FOCUS VIEW",12f,PAPER,true).apply{
+            gravity=Gravity.CENTER_VERTICAL
+            letterSpacing=.14f
+            setPadding(dp(14),0,0,0)
+            visibility=View.GONE
+        }
+        canvasHolder.addView(focusHeader,
+            FrameLayout.LayoutParams(-2,dp(44),Gravity.TOP or Gravity.START).apply{
+                setMargins(dp(10),dp(14),0,0)
+            })
+        focusHeaderLabel=focusHeader
         // Website-style Focus View: editing remains active while chrome is hidden.
         focusToolbar = LinearLayout(this).apply{
             orientation=LinearLayout.VERTICAL
@@ -453,6 +465,7 @@ class MainActivity : Activity() {
         headlineLabel.visibility=visibility
         fullscreenExitButton.visibility=if(active)View.VISIBLE else View.GONE
         focusToolbar.visibility=if(active)View.VISIBLE else View.GONE
+        focusHeaderLabel.visibility=if(active)View.VISIBLE else View.GONE
         focusButton.text=getString(if(active)R.string.edit else R.string.focus)
         canvas.focusMode=active
         canvas.showSelectionHandles=!active
