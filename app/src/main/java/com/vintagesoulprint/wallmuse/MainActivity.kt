@@ -940,7 +940,6 @@ class MainActivity : Activity() {
                     .setItems(names){_,index->
                         if(index==0){
                             if(liveMode)disableLiveCamera()
-                            canvas.replaceWallKeepArtwork(canvas.wallPhoto?:return@setItems)
                             canvas.replaceWallKeepArtwork(createNeutralWallForReuse())
                             wallUri=null
                             syncControls()
