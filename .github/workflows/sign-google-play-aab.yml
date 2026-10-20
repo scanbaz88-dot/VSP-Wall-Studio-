@@ -1,0 +1,65 @@
+name: Sign production Google Play AAB
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  signed-play-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      VSP_PREMIUM_VERIFY_URL: ${{ secrets.VSP_PREMIUM_VERIFY_URL }}
+      VSP_RELEASE_KEYSTORE_BASE64: ${{ secrets.VSP_RELEASE_KEYSTORE_BASE64 }}
+      VSP_RELEASE_STORE_PASSWORD: ${{ secrets.VSP_RELEASE_STORE_PASSWORD }}
+      VSP_RELEASE_KEY_PASSWORD: ${{ secrets.VSP_RELEASE_KEY_PASSWORD }}
+      VSP_RELEASE_KEY_ALIAS: ${{ secrets.VSP_RELEASE_KEY_ALIAS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Verify private signing and Premium configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VSP_PREMIUM_VERIFY_URL"
+          [[ "$VSP_PREMIUM_VERIFY_URL" == https://* ]]
+          test -n "$VSP_RELEASE_KEYSTORE_BASE64"
+          test -n "$VSP_RELEASE_STORE_PASSWORD"
+          test -n "$VSP_RELEASE_KEY_PASSWORD"
+          test -n "$VSP_RELEASE_KEY_ALIAS"
+          printf '%s' "$VSP_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/vsp-upload.jks"
+          keytool -list -keystore "$RUNNER_TEMP/vsp-upload.jks" -storepass:env VSP_RELEASE_STORE_PASSWORD -alias "$VSP_RELEASE_KEY_ALIAS" >/dev/null
+          # Public preview debug key is only needed to compile debug tests.
+          base64 --decode app/preview-test-only.jks.base64 > app/preview-test-only.jks
+      - name: Install Android 36 and optimized room photos
+        shell: bash
+        run: |
+          SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          "$SDKMGR" --install "platforms;android-36" "build-tools;36.0.0"
+          python3 -m pip install pillow==11.3.0
+          python3 tools/prepare_room_assets.py
+          python3 tools/verify_room_fit.py
+      - name: Run unit tests and build unsigned release AAB
+        run: gradle --no-daemon :app:testDebugUnitTest :app:bundleRelease
+      - name: Sign and verify release AAB with private Play upload certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAB="$(find app/build/outputs/bundle/release -name '*.aab' | head -n 1)"
+          test -s "$AAB"
+          jarsigner -keystore "$RUNNER_TEMP/vsp-upload.jks" -storepass:env VSP_RELEASE_STORE_PASSWORD -keypass:env VSP_RELEASE_KEY_PASSWORD "$AAB" "$VSP_RELEASE_KEY_ALIAS"
+          jarsigner -verify -strict -certs "$AAB" >/dev/null
+          mv "$AAB" app/build/outputs/bundle/release/VSP-Wall-Studio-PLAY-SIGNED.aab
+          rm -f "$RUNNER_TEMP/vsp-upload.jks"
+      - name: Upload production upload-signed bundle for manual Play Console release
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSP-Wall-Studio-v3.3-PLAY-UPLOAD-SIGNED-AAB
+          path: app/build/outputs/bundle/release/VSP-Wall-Studio-PLAY-SIGNED.aab
+          if-no-files-found: error
+          retention-days: 14
