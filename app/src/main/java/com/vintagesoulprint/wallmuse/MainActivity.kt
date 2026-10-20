@@ -1151,7 +1151,7 @@ class MainActivity : Activity() {
         val name = "WM_CAMERA_${timestamp()}.jpg"
         val content = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
-            put(MediaStore.Images.Media.MIME_TYPE, if(png)"image/png" else "image/jpeg")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/VSP Wall Studio")
             put(MediaStore.Images.Media.IS_PENDING, 1)
         }
