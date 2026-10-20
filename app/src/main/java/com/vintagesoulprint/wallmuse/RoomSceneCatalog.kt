@@ -24,17 +24,23 @@ object RoomSceneCatalog {
         val titleTr:String,
         val photographer:String,
         val photoUrl:String,
-        val free:Boolean
+        val free:Boolean,
+        val suggestedX:Float,
+        val suggestedY:Float,
+        val suggestedWidth:Float
     ) {
         fun title(context:Context)=
             if(context.resources.configuration.locales[0].language=="tr")titleTr else titleEn
     }
     private var saved:List<Scene>?=null
+    private var assetRevision=1
     fun scenes(context:Context):List<Scene>{
         saved?.let{return it}
         val text=context.assets.open("room_scenes.json")
             .bufferedReader(Charsets.UTF_8).use{it.readText()}
-        val items=JSONObject(text).getJSONArray("scenes")
+        val document=JSONObject(text)
+        assetRevision=document.optInt("asset_revision",1).coerceIn(1,999)
+        val items=document.getJSONArray("scenes")
         val values=(0 until items.length()).map{i->
             val item=items.getJSONObject(i)
             Scene(
@@ -44,7 +50,10 @@ object RoomSceneCatalog {
                 item.getString("title_tr"),
                 item.getString("photographer"),
                 item.getString("photo_url"),
-                item.getBoolean("free")
+                item.getBoolean("free"),
+                item.optJSONArray("anchor")?.optDouble(0,.50)?.toFloat()?.coerceIn(.10f,.90f)?:.50f,
+                item.optJSONArray("anchor")?.optDouble(1,.42)?.toFloat()?.coerceIn(.10f,.90f)?:.42f,
+                item.optJSONArray("anchor")?.optDouble(2,.25)?.toFloat()?.coerceIn(.10f,.50f)?:.25f
             )
         }
         require(values.size==24)
@@ -71,8 +80,11 @@ object RoomSceneCatalog {
     }
     fun persistentUri(context:Context,id:String):Uri{
         require(validName(id))
+        // A new asset revision uses a NEW private path: old saved projects
+        // retain their original wallpaper instead of silently changing.
+        if(saved==null)scenes(context)
         val folder=context.filesDir
-        val file=File(folder,"ready_$id.jpg")
+        val file=File(folder,"ready_v${assetRevision}_$id.jpg")
         if(!file.exists()||file.length()<8_000){
             val staging=File(folder,"ready_$id.tmp")
             try{
