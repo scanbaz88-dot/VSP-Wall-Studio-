@@ -33,6 +33,40 @@ object PerspectiveGeometry {
         val area=abs(twiceArea)/2f
         return area>.08f
     }
+    /**
+     * Eight camera/viewpoint directions: cardinal (dx or dy) and diagonals.
+     * A strength of 0 is the identity; 100 is a strong but safe keystone.
+     * A true projective transform results from these four convex corners.
+     */
+    fun preset(dx:Int,dy:Int,strength:Int):FloatArray {
+        val sx=dx.coerceIn(-1,1)
+        val sy=dy.coerceIn(-1,1)
+        val k=strength.coerceIn(0,100)/100f
+        val xy=.25f*k
+        val depth=.18f*k
+        val p=IDENTITY.copyOf()
+        // Viewing from left: recede the right edge. Viewing from right:
+        // recede the left edge. Both axes are affected for believable depth.
+        if(sx<0){
+            p[2]-=xy;p[3]+=depth
+            p[4]-=xy;p[5]-=depth
+        }else if(sx>0){
+            p[0]+=xy;p[1]+=depth
+            p[6]+=xy;p[7]-=depth
+        }
+        // Viewing from above: recede the bottom edge. From below: the top.
+        if(sy<0){
+            p[6]+=depth;p[7]-=xy
+            p[4]-=depth;p[5]-=xy
+        }else if(sy>0){
+            p[0]+=depth;p[1]+=xy
+            p[2]-=depth;p[3]+=xy
+        }
+        return if(valid(p))p else IDENTITY.copyOf()
+    }
+    fun isIdentity(p:FloatArray):Boolean=p.size==8&&p.indices.all {
+        kotlin.math.abs(p[it]-IDENTITY[it])<.0001f
+    }
     fun rotate(angle:Float):Float=((angle%360f)+360f)%360f
     fun quarterTurn(angle:Float):Float=rotate(angle+90f)
     fun clampSize(size:Float)=size.coerceIn(.08f,.88f)
