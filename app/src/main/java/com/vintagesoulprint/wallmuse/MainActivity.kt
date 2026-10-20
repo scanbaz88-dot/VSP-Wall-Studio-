@@ -272,6 +272,7 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.live_camera), "outlined") {toggleLiveCamera()}.also{cameraButton=it})
             addAction(button(getString(R.string.new_project), "outlined") { confirmNewProject() })
             addAction(button(getString(R.string.project_library), "outlined") { showProjectLibrary() })
+            addAction(button(getString(R.string.my_wall_library), "outlined") { showWallLibrary() })
             addAction(button(getString(R.string.gallery_layout), "outlined") { showGalleryLayouts() })
             addAction(button(getString(R.string.smart_tools), "outlined") { showSmartTools() })
             addAction(button(getString(R.string.export_format), "outlined") { showExportFormatDialog() })
@@ -918,6 +919,41 @@ class MainActivity : Activity() {
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.reset_yes) { _, _ -> checkpoint(); canvas.clearArtwork() }
             .show()
+    }
+
+    /** Offline wall backgrounds from the user's own saved projects. */
+    private fun showWallLibrary(){
+        val stored=ProjectLibrary.list(this).mapNotNull{entry->
+            try{
+                val uri=ProjectLibrary.open(this,entry.id)?.wallUri
+                if(uri.isNullOrBlank())null else entry.name to uri
+            }catch(_:Exception){null}
+        }
+        val names=arrayOf(getString(R.string.default_project_name)+" · plaster wall")+
+            stored.map{it.first}.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.my_wall_library)
+            .setMessage(R.string.my_wall_library_hint)
+            .setPositiveButton(getString(R.string.apply)){_,_->
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.my_wall_library)
+                    .setItems(names){_,index->
+                        if(index==0){
+                            if(liveMode)disableLiveCamera()
+                            canvas.replaceWallKeepArtwork(canvas.wallPhoto?:return@setItems)
+                            canvas.replaceWallKeepArtwork(createNeutralWallForReuse())
+                            wallUri=null
+                            syncControls()
+                        }else loadWall(Uri.parse(stored[index-1].second))
+                    }.setNegativeButton(R.string.cancel,null).show()
+            }.setNegativeButton(R.string.cancel,null).show()
+    }
+
+    private fun createNeutralWallForReuse():Bitmap {
+        // Reuse the existing procedurally created plaster wall, not a stock image.
+        // A short temporary canvas avoids rebuilding textures differently.
+        val temporary=WallCanvasView(this)
+        return temporary.wallPhoto?:Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888)
     }
 
     private fun showGalleryLayouts(){
