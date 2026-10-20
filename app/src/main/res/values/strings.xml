@@ -123,4 +123,25 @@
     <string name="export_format">Save / share image</string>
     <string name="my_wall_library">My Wall Library</string>
     <string name="my_wall_library_hint">Reuse wall backgrounds from your saved projects.</string>
+    <string name="group_studio">Group editor</string>
+    <string name="group_choose">Select artworks</string>
+    <string name="group_choose_hint">Select at least two artworks to edit together.</string>
+    <string name="group_selected">%1$d artworks selected. Drag any selected artwork or pinch to resize the group.</string>
+    <string name="group_change">Change selection</string>
+    <string name="group_end">Exit group editing</string>
+    <string name="group_align_left">Align left</string>
+    <string name="group_align_right">Align right</string>
+    <string name="group_align_center_x">Center horizontally</string>
+    <string name="group_align_top">Align top</string>
+    <string name="group_align_bottom">Align bottom</string>
+    <string name="group_align_center_y">Center vertically</string>
+    <string name="group_space_x">Distribute horizontally</string>
+    <string name="group_space_y">Distribute vertically</string>
+    <string name="group_grow">Grow group 10%</string>
+    <string name="group_shrink">Shrink group 10%</string>
+    <string name="group_apply">Group actions</string>
+    <string name="gallery_gap">Space between artworks (cm)</string>
+    <string name="measurement_guides">Toggle size guides</string>
+    <string name="measure_note">Measurements are approximate. Calibrate using a known wall reference first.</string>
+    <string name="gallery_ratio_note">Artwork aspect ratios are preserved during arrangement.</string>
 </resources>
