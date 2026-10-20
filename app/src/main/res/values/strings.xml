@@ -74,4 +74,15 @@
     <string name="focus_settings">Settings</string>
     <string name="perspective">Perspective</string>
     <string name="perspective_hint">Drag all four corners to match the wall angle. Artwork and frame transform together.</string>
+    <string name="perspective_easy_hint">1. Choose direction  2. Adjust strength  3. Apply</string>
+    <string name="perspective_direction">Viewing angle (8 directions)</string>
+    <string name="perspective_straight">Straight on · no perspective</string>
+    <string name="perspective_direction_selected">Selected direction:</string>
+    <string name="perspective_strength">Perspective strength</string>
+    <string name="perspective_fine_adjust">Fine tune: move corners manually</string>
+    <string name="perspective_fine_hint">Optional: drag the gold corners for more precise alignment.</string>
+    <string name="perspective_reset">RESET</string>
+    <string name="quick_guide">Three easy steps: 1. Choose a wall photo or open the live camera. 2. Add artwork, drag with one finger, pinch with two to resize. 3. Select one of eight perspective directions and adjust strength. Use Focus View for more space.</string>
+    <string name="scroll_tools">↓ Editing tools</string>
+    <string name="center_art">Center artwork</string>
 </resources>
