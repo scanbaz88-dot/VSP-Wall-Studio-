@@ -208,8 +208,8 @@ class GroupStudioPanel(
         },LayoutParams(0,StudioUi.dp(context,43),1f))
         addView(row,LayoutParams(-1,StudioUi.dp(context,48)))
         addView(StudioUi.text(context,StudioUi.tr(context,
-            "1. Tablolara dokun  2. Seçimi bitir  3. Hizala / sürükle",
-            "1. Tap artworks  2. Finish selecting  3. Align or drag"),11f),
+            "İstemediklerine dokunarak seçimden çıkar. Sonra hizala veya sürükle.",
+            "Tap artworks to deselect them, then align or drag."),11f),
             LayoutParams(-1,StudioUi.dp(context,32)))
         val scroll=HorizontalScrollView(context).apply{isHorizontalScrollBarEnabled=false}
         val ribbon=LinearLayout(context).apply{orientation=HORIZONTAL}
@@ -246,7 +246,8 @@ class GroupStudioPanel(
     }
     fun updateCount(n:Int){
         count.text=StudioUi.tr(context,"Seçili tablo: ","Selected: ")+"$n  ·  "+
-            StudioUi.tr(context,"En az 2 tablo seçin","Choose at least 2")
+            if(n>=2)StudioUi.tr(context,"Hazır","Ready")
+            else StudioUi.tr(context,"En az 2 tablo seç","Choose at least 2")
     }
     private fun updatePickingUi(){
         pickButton.text=if(choosing)StudioUi.tr(context,"✓ Seçimi bitir","✓ Finish selecting")
