@@ -49,13 +49,13 @@ class GalleryPreviewTile(
     private val layout:GalleryPlanner.Layout,
     private val aspectRatios:List<Float>
 ):View(context) {
-    var selected=false
+    var activeChoice=false
         set(v){field=v;invalidate()}
     private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
     override fun onDraw(canvas:Canvas){
         super.onDraw(canvas)
         val margin=6f*resources.displayMetrics.density
-        paint.color=if(selected)0xFF70654D.toInt()else 0xFF5D695F.toInt()
+        paint.color=if(activeChoice)0xFF70654D.toInt()else 0xFF5D695F.toInt()
         canvas.drawRoundRect(0f,0f,width.toFloat(),height.toFloat(),9f,9f,paint)
         paint.color=0xFFE5DECE.toInt()
         val available=RectF(margin,margin,width-margin,height-margin)
@@ -117,7 +117,7 @@ class GalleryDesignerPanel(
             StudioUi.tr(context,"Kademeli","Stagger")
         )
         GalleryPlanner.Layout.values().forEachIndexed {i,style->
-            val tile=GalleryPreviewTile(context,style,ratios).apply{selected=i==0}
+            val tile=GalleryPreviewTile(context,style,ratios).apply{activeChoice=i==0}
             gapViews.add(tile)
             val col=LinearLayout(context).apply{
                 orientation=VERTICAL
@@ -128,7 +128,7 @@ class GalleryDesignerPanel(
                 },LayoutParams(-1,StudioUi.dp(context,24)))
                 setOnClickListener{
                     layout=style
-                    gapViews.forEachIndexed{idx,v->v.selected=idx==i}
+                    gapViews.forEachIndexed{idx,v->v.activeChoice=idx==i}
                     onPreview(layout,gapCm)
                 }
                 contentDescription=titles[i]
