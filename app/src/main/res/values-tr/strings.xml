@@ -123,4 +123,25 @@
     <string name="export_format">Görseli kaydet / paylaş</string>
     <string name="my_wall_library">Duvar kütüphanem</string>
     <string name="my_wall_library_hint">Kendi kaydettiğiniz projelerin duvar fotoğraflarını yeniden kullanın.</string>
+    <string name="group_studio">Grup düzenle</string>
+    <string name="group_choose">Tabloları seç</string>
+    <string name="group_choose_hint">Birlikte düzenlemek için en az iki eser seçin.</string>
+    <string name="group_selected">%1$d tablo seçildi. Tabloyu sürükleyin veya iki parmakla ölçekleyin.</string>
+    <string name="group_change">Seçimi değiştir</string>
+    <string name="group_end">Grubu kapat</string>
+    <string name="group_align_left">Sola hizala</string>
+    <string name="group_align_right">Sağa hizala</string>
+    <string name="group_align_center_x">Yatay ortala</string>
+    <string name="group_align_top">Üste hizala</string>
+    <string name="group_align_bottom">Alta hizala</string>
+    <string name="group_align_center_y">Dikey ortala</string>
+    <string name="group_space_x">Yatay eşit boşluk</string>
+    <string name="group_space_y">Dikey eşit boşluk</string>
+    <string name="group_grow">Grubu %10 büyüt</string>
+    <string name="group_shrink">Grubu %10 küçült</string>
+    <string name="group_apply">Grup işlemleri</string>
+    <string name="gallery_gap">Tablolar arası mesafe (cm)</string>
+    <string name="measurement_guides">Ölçü çizgilerini göster/gizle</string>
+    <string name="measure_note">Ölçüler tahminidir; hassas sonuç için önce duvarı referansla kalibre edin.</string>
+    <string name="gallery_ratio_note">Eserlerin en-boy oranları korunarak yerleşim yapılır.</string>
 </resources>
