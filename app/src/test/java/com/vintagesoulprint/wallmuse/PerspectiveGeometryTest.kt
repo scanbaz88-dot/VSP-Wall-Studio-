@@ -19,4 +19,25 @@ class PerspectiveGeometryTest {
         assertEquals(0f,a,.0001f)
         assertEquals(90f,PerspectiveGeometry.quarterTurn(0f),.0001f)
     }
+
+    @Test fun eightDirectionsStayConvexAtEveryStrength(){
+        for(x in -1..1)for(y in -1..1){
+            for(strength in listOf(0,15,38,70,100)){
+                assertTrue("x=$x y=$y strength=$strength",
+                    PerspectiveGeometry.valid(PerspectiveGeometry.preset(x,y,strength)))
+            }
+        }
+    }
+    @Test fun zeroStrengthIsStraightForAllDirections(){
+        for(x in -1..1)for(y in -1..1)
+            assertArrayEquals(PerspectiveGeometry.IDENTITY,
+                PerspectiveGeometry.preset(x,y,0),.00001f)
+    }
+    @Test fun presetsAreNotIdenticalForOppositeViews(){
+        assertFalse(PerspectiveGeometry.preset(-1,0,75).contentEquals(
+            PerspectiveGeometry.preset(1,0,75)))
+        assertFalse(PerspectiveGeometry.preset(0,-1,75).contentEquals(
+            PerspectiveGeometry.preset(0,1,75)))
+    }
+
 }
