@@ -78,6 +78,11 @@ class MainActivity : Activity() {
     private var perspectiveCandidate: FloatArray? = null
     private var perspectiveLaunchedFromEditor=false
     private var perspectiveComparing=false
+    private var smartWallAssistant:SmartWallAssistantPanel?=null
+    private var smartAssistantStep=0
+    private var assistantStartedFromEditor=false
+    private var assistantSuspended=false
+    private var wallLineHint:LinearLayout?=null
     private var galleryDesignerPanel: GalleryDesignerPanel?=null
     private var galleryDesignerBaseline:WallCanvasView.State?=null
     private var galleryOpenedFromEditor=false
@@ -133,6 +138,18 @@ class MainActivity : Activity() {
         val retained = lastNonConfigurationInstance as? MemorySession
         if (retained != null) restoreMemorySession(retained)
         else restoreSavedDraft()
+        // Show a small introduction only once, never on each app update/restart.
+        if(!getPreferences(MODE_PRIVATE).getBoolean("v3_guide_seen",false)){
+            getPreferences(MODE_PRIVATE).edit().putBoolean("v3_guide_seen",true).apply()
+            root.post{
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.assistant_welcome_title)
+                    .setMessage(R.string.assistant_welcome_message)
+                    .setPositiveButton(R.string.assistant_start){_,_->startSmartWallAssistant()}
+                    .setNegativeButton(R.string.assistant_later,null)
+                    .show()
+            }
+        }
         // API 36 edge-to-edge: inset all interactive controls out of the system bar areas.
         root.setOnApplyWindowInsetsListener { v, insets ->
             val system = if (android.os.Build.VERSION.SDK_INT >= 30) {
@@ -273,6 +290,9 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.add_art), "gold") {
                 if (canvas.artCount >= 12) toast(R.string.max_art)
                 else pickImage(REQUEST_ART)
+            })
+            addAction(button("✦ "+getString(R.string.smart_assistant),"outlined"){
+                startSmartWallAssistant()
             })
             addAction(button(getString(R.string.pick_wall), "outlined") { pickImage(REQUEST_WALL) })
             addAction(button(getString(R.string.take_photo), "outlined") { takeCameraPhoto() })
@@ -493,6 +513,7 @@ class MainActivity : Activity() {
             runOnUiThread {Toast.makeText(this,message,Toast.LENGTH_LONG).show();disableLiveCamera()}
         }
         liveCamera?.start()
+        refreshSmartWallAssistant()
     }
     private fun disableLiveCamera() {
         if(livePerspectivePanel!=null)finishLivePerspective(false)
@@ -502,6 +523,7 @@ class MainActivity : Activity() {
         preview.visibility=View.GONE
         canvas.livePreview=false
         if(::cameraButton.isInitialized)cameraButton.text=getString(R.string.live_camera)
+        refreshSmartWallAssistant()
     }
     override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray){
         super.onRequestPermissionsResult(requestCode,permissions,grantResults)
@@ -514,6 +536,7 @@ class MainActivity : Activity() {
     override fun onResume(){super.onResume();if(liveMode&&frozenCameraFrame==null)liveCamera?.start();if(!editing)applyImmersiveBars(true)}
 
     private fun setFocusMode(active: Boolean) {
+        if(!active&&smartWallAssistant!=null)finishSmartWallAssistant(false)
         if(!active&&livePerspectivePanel!=null)finishLivePerspective(false,false)
         if(!active&&galleryDesignerPanel!=null)finishGalleryDesign(false,false)
         if(!active&&groupStudioPanel!=null)finishGroupStudio(false)
@@ -530,7 +553,7 @@ class MainActivity : Activity() {
         headlineLabel.visibility=visibility
         fullscreenExitButton.visibility=if(active)View.VISIBLE else View.GONE
         focusToolbar.visibility=if(active&&livePerspectivePanel==null&&
-            galleryDesignerPanel==null&&groupStudioPanel==null)View.VISIBLE else View.GONE
+            galleryDesignerPanel==null&&groupStudioPanel==null&&smartWallAssistant==null)View.VISIBLE else View.GONE
         focusHeaderLabel.visibility=if(active)View.VISIBLE else View.GONE
         toolsShortcut.visibility=if(active)View.GONE else View.VISIBLE
         focusButton.text=getString(if(active)R.string.edit else R.string.focus)
@@ -655,7 +678,8 @@ class MainActivity : Activity() {
         perspectiveCandidate=null
         perspectiveComparing=false
         if(frozenCameraFrame!=null)releaseFrozenCamera(restart=true)
-        focusToolbar.visibility=if(!editing)View.VISIBLE else View.GONE
+        resumeSmartAssistant()
+        focusToolbar.visibility=if(!editing&&smartWallAssistant==null)View.VISIBLE else View.GONE
         syncControls()
         if(returnToEditor&&perspectiveLaunchedFromEditor){
             perspectiveLaunchedFromEditor=false
@@ -765,9 +789,11 @@ class MainActivity : Activity() {
 
     @Deprecated("Use system back callback when upgrading Android runtime dependencies")
     override fun onBackPressed() {
-        if(livePerspectivePanel!=null)finishLivePerspective(false)
+        if(canvas.wallLineAlignmentActive)cancelWallLineAssist()
+        else if(livePerspectivePanel!=null)finishLivePerspective(false)
         else if(galleryDesignerPanel!=null)finishGalleryDesign(false)
         else if(groupStudioPanel!=null)finishGroupStudio(true)
+        else if(smartWallAssistant!=null)finishSmartWallAssistant()
         else if (!editing) setFocusMode(false) else super.onBackPressed()
     }
 
@@ -1037,6 +1063,138 @@ class MainActivity : Activity() {
     }
 
     /** The preview is transactional: cancel restores every picture exactly. */
+    /** Five short steps, always on the actual wall preview. */
+    private fun startSmartWallAssistant(){
+        if(smartWallAssistant!=null)return
+        if(livePerspectivePanel!=null || groupStudioPanel!=null || galleryDesignerPanel!=null){
+            Toast.makeText(this,getString(R.string.assistant_close_editor),Toast.LENGTH_SHORT).show()
+            return
+        }
+        assistantStartedFromEditor=editing
+        smartAssistantStep=0
+        if(editing)setFocusMode(true)
+        focusToolbar.visibility=View.GONE
+        toolsShortcut.visibility=View.GONE
+        val panel=SmartWallAssistantPanel(this,
+            action={type->doAssistantAction(type)},
+            changeStep={index->
+                if(index>1 && canvas.artCount==0){
+                    Toast.makeText(this,getString(R.string.assistant_add_first),
+                        Toast.LENGTH_SHORT).show()
+                }else{
+                    smartAssistantStep=index
+                    refreshSmartWallAssistant()
+                }
+            },
+            close={finishSmartWallAssistant()}
+        )
+        smartWallAssistant=panel
+        canvasHolder.addView(panel,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
+            setMargins(dp(12),0,dp(12),dp(14))
+        })
+        refreshSmartWallAssistant()
+    }
+    private fun refreshSmartWallAssistant(){
+        smartWallAssistant?.update(smartAssistantStep,
+            canvas.artCount>0,canvas.artCount,liveMode)
+    }
+    private fun suspendSmartAssistant(){
+        smartWallAssistant?.visibility=View.GONE
+        assistantSuspended=true
+    }
+    private fun resumeSmartAssistant(){
+        if(!assistantSuspended)return
+        assistantSuspended=false
+        smartWallAssistant?.visibility=View.VISIBLE
+        refreshSmartWallAssistant()
+        if(smartWallAssistant!=null)focusToolbar.visibility=View.GONE
+    }
+    private fun doAssistantAction(action:SmartWallAssistantPanel.Action){
+        when(action){
+            SmartWallAssistantPanel.Action.PICK_WALL->pickImage(REQUEST_WALL)
+            SmartWallAssistantPanel.Action.LIVE_CAMERA->toggleLiveCamera()
+            SmartWallAssistantPanel.Action.ADD_ART->{
+                if(canvas.artCount>=12)toast(R.string.max_art)
+                else pickImage(REQUEST_ART)
+            }
+            SmartWallAssistantPanel.Action.CROP->showCropSettings()
+            SmartWallAssistantPanel.Action.PRINT_SIZE->showPrintSizes()
+            SmartWallAssistantPanel.Action.MEASURE->beginReferenceCalibration()
+            SmartWallAssistantPanel.Action.ALIGN_LINE->beginWallLineAssist()
+            SmartWallAssistantPanel.Action.PERSPECTIVE->{
+                if(canvas.selected==null)toast(R.string.no_selection)
+                else{
+                    suspendSmartAssistant()
+                    showPerspectiveSettings()
+                }
+            }
+            SmartWallAssistantPanel.Action.GALLERY->{
+                suspendSmartAssistant()
+                showGalleryLayouts()
+            }
+            SmartWallAssistantPanel.Action.FRAME_ADVICE->recommendFrame()
+            SmartWallAssistantPanel.Action.SAVE_PROJECT->promptSaveProject()
+            SmartWallAssistantPanel.Action.EXPORT->showExportFormatDialog()
+        }
+    }
+    private fun finishSmartWallAssistant(restoreEditor:Boolean=true){
+        if(canvas.wallLineAlignmentActive)canvas.cancelWallLineAlignment()
+        wallLineHint?.let{canvasHolder.removeView(it)}
+        wallLineHint=null
+        val panel=smartWallAssistant?:return
+        canvasHolder.removeView(panel)
+        smartWallAssistant=null
+        assistantSuspended=false
+        focusToolbar.visibility=if(!editing)View.VISIBLE else View.GONE
+        val wasEditing=assistantStartedFromEditor
+        assistantStartedFromEditor=false
+        if(restoreEditor && wasEditing)setFocusMode(false)
+    }
+    private fun beginWallLineAssist(){
+        if(canvas.selected==null){toast(R.string.no_selection);return}
+        if(canvas.wallLineAlignmentActive)return
+        val wizard=smartWallAssistant
+        wizard?.visibility=View.GONE
+        // The user sees the WALL, not a fake AR rectangle.
+        val hint=LinearLayout(this).apply{
+            orientation=LinearLayout.HORIZONTAL
+            gravity=Gravity.CENTER_VERTICAL
+            background=panelBackground()
+            setPadding(dp(12),dp(8),dp(12),dp(8))
+        }
+        hint.addView(label(getString(R.string.assistant_line_hint),12f,PAPER,true),
+            LinearLayout.LayoutParams(0,dp(60),1f))
+        hint.addView(button("✕", "outlined"){cancelWallLineAssist()},
+            LinearLayout.LayoutParams(dp(48),dp(48)))
+        wallLineHint=hint
+        canvasHolder.addView(hint,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
+            setMargins(dp(12),0,dp(12),dp(13))
+        })
+        canvas.beginWallLineAlignment {angle->
+            wallLineHint?.let{canvasHolder.removeView(it)}
+            wallLineHint=null
+            if(angle==null){
+                Toast.makeText(this,getString(R.string.assistant_line_invalid),
+                    Toast.LENGTH_LONG).show()
+            }else{
+                checkpoint()
+                canvas.setAngle(angle)
+                syncControls()
+                Toast.makeText(this,getString(R.string.assistant_angle_done,angle),
+                    Toast.LENGTH_LONG).show()
+            }
+            smartWallAssistant?.visibility=View.VISIBLE
+            refreshSmartWallAssistant()
+        }
+    }
+    private fun cancelWallLineAssist(){
+        canvas.cancelWallLineAlignment()
+        wallLineHint?.let{canvasHolder.removeView(it)}
+        wallLineHint=null
+        smartWallAssistant?.visibility=View.VISIBLE
+        refreshSmartWallAssistant()
+    }
+
     private fun showGalleryLayouts(){
         if(canvas.artCount==0){toast(R.string.gallery_none);return}
         if(livePerspectivePanel!=null)return
@@ -1085,7 +1243,8 @@ class MainActivity : Activity() {
         canvasHolder.removeView(panel)
         galleryDesignerPanel=null
         galleryDesignerBaseline=null
-        focusToolbar.visibility=if(!editing)View.VISIBLE else View.GONE
+        resumeSmartAssistant()
+        focusToolbar.visibility=if(!editing&&smartWallAssistant==null)View.VISIBLE else View.GONE
         syncControls()
         val back=galleryOpenedFromEditor
         galleryOpenedFromEditor=false
@@ -1109,9 +1268,7 @@ class MainActivity : Activity() {
             .setTitle(R.string.smart_tools)
             .setItems(items){_,i->
                 when(i){
-                    0->AlertDialog.Builder(this).setTitle(R.string.smart_assistant)
-                        .setMessage(R.string.smart_assistant_guide)
-                        .setPositiveButton("OK",null).show()
+                    0->startSmartWallAssistant()
                     1->recommendFrame()
                     2->beginReferenceCalibration()
                     3->{canvas.smartSnap=!canvas.smartSnap
@@ -1398,6 +1555,7 @@ class MainActivity : Activity() {
             REQUEST_WALL -> loadWall(uri)
             REQUEST_ART -> loadArt(uri)
         }
+        refreshSmartWallAssistant()
     }
 
     private fun loadWall(uri: Uri) {
