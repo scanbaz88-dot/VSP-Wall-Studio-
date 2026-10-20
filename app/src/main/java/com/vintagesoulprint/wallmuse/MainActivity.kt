@@ -565,6 +565,10 @@ class MainActivity : Activity() {
         canvas.showSelectionHandles=false
         canvas.perspectivePreview=true
         canvas.perspectiveFineTune=false
+        canvas.onPerspectiveFineChanged={points->
+            perspectiveCandidate=points.copyOf()
+            perspectiveComparing=false
+        }
         focusToolbar.visibility=View.GONE
         toolsShortcut.visibility=View.GONE
         val panel=LivePerspectivePanel(this,
@@ -622,6 +626,7 @@ class MainActivity : Activity() {
         }
         canvas.perspectivePreview=false
         canvas.perspectiveFineTune=false
+        canvas.onPerspectiveFineChanged=null
         canvasHolder.removeView(panel)
         livePerspectivePanel=null
         perspectiveBaseline=null
