@@ -121,4 +121,6 @@
     <string name="export_png">PNG (kayıpsız)</string>
     <string name="export_jpeg">JPG (yüksek kalite)</string>
     <string name="export_format">Görseli kaydet / paylaş</string>
+    <string name="my_wall_library">Duvar kütüphanem</string>
+    <string name="my_wall_library_hint">Kendi kaydettiğiniz projelerin duvar fotoğraflarını yeniden kullanın.</string>
 </resources>
