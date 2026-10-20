@@ -28,6 +28,7 @@ import android.widget.EditText
 import android.widget.GridLayout
 import android.text.InputType
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
@@ -69,6 +70,14 @@ class MainActivity : Activity() {
     private lateinit var fullscreenExitButton: Button
     private lateinit var canvas: WallCanvasView
     private lateinit var preview: TextureView
+    private lateinit var frozenPreview: ImageView
+    private var frozenCameraFrame: Bitmap? = null
+    private var livePerspectivePanel: LivePerspectivePanel? = null
+    private var perspectiveBaseline: WallCanvasView.State? = null
+    private var perspectiveOriginal: FloatArray? = null
+    private var perspectiveCandidate: FloatArray? = null
+    private var perspectiveLaunchedFromEditor=false
+    private var perspectiveComparing=false
     private lateinit var canvasHolder: FrameLayout
     private lateinit var cameraButton: Button
     private var liveCamera: LiveCamera? = null
@@ -145,7 +154,7 @@ class MainActivity : Activity() {
         // Store the tiny edit manifest, not the photo pixels, inside private app storage.
         if (::canvas.isInitialized) {
             try {
-                ProjectStore.write(this, wallUri?.toString(), canvas.state(), canvas.showArtwork)
+                ProjectStore.write(this, wallUri?.toString(), perspectiveBaseline?:canvas.state(), canvas.showArtwork)
             } catch (_: Exception) { /* An autosave error must never crash or block the editor. */ }
         }
         super.onStop()
@@ -275,6 +284,11 @@ class MainActivity : Activity() {
             }
         }
         canvasHolder.addView(preview,FrameLayout.LayoutParams(-1,-1))
+        frozenPreview=ImageView(this).apply{
+            visibility=View.GONE
+            scaleType=ImageView.ScaleType.FIT_XY
+        }
+        canvasHolder.addView(frozenPreview,FrameLayout.LayoutParams(-1,-1))
         canvas = WallCanvasView(this)
         canvas.onSelectionChanged = { syncControls() }
         canvas.onGestureStart = { checkpoint() }
@@ -463,6 +477,8 @@ class MainActivity : Activity() {
         liveCamera?.start()
     }
     private fun disableLiveCamera() {
+        if(livePerspectivePanel!=null)finishLivePerspective(false)
+        releaseFrozenCamera(restart=false)
         liveMode=false
         liveCamera?.stop();liveCamera=null
         preview.visibility=View.GONE
@@ -477,9 +493,10 @@ class MainActivity : Activity() {
         }
     }
     override fun onPause(){liveCamera?.stop();super.onPause()}
-    override fun onResume(){super.onResume();if(liveMode)liveCamera?.start();if(!editing)applyImmersiveBars(true)}
+    override fun onResume(){super.onResume();if(liveMode&&frozenCameraFrame==null)liveCamera?.start();if(!editing)applyImmersiveBars(true)}
 
     private fun setFocusMode(active: Boolean) {
+        if(!active&&livePerspectivePanel!=null)finishLivePerspective(false,false)
         if(active)savedEditorScroll=editorScroll.scrollY
         editing = !active
         canvasHolder.layoutParams=canvasHolder.layoutParams.apply{
@@ -492,7 +509,7 @@ class MainActivity : Activity() {
         actionsRow.visibility=visibility
         headlineLabel.visibility=visibility
         fullscreenExitButton.visibility=if(active)View.VISIBLE else View.GONE
-        focusToolbar.visibility=if(active)View.VISIBLE else View.GONE
+        focusToolbar.visibility=if(active&&livePerspectivePanel==null)View.VISIBLE else View.GONE
         focusHeaderLabel.visibility=if(active)View.VISIBLE else View.GONE
         toolsShortcut.visibility=if(active)View.GONE else View.VISIBLE
         focusButton.text=getString(if(active)R.string.edit else R.string.focus)
@@ -535,106 +552,118 @@ class MainActivity : Activity() {
         syncControls()
     }
 
-    /**
-     * Guided perspective: select one of eight viewpoints, adjust strength, Apply.
-     * The preview uses the actual CROPPED image + frame, not the original photo.
-     * Four-corner fine tuning is an optional advanced control.
-     */
+    /** Live-on-wall perspective editing, without a modal scrim. */
     private fun showPerspectiveSettings(){
-        val layer=canvas.selected?:run{toast(R.string.no_selection);return}
-        val previewArt=canvas.framedCropForPerspective()?:layer.bitmap
-        val editor=PerspectiveEditorView(this,previewArt,
-            canvas.selectedPerspective()?:PerspectiveGeometry.IDENTITY)
-        var selectedX=0
-        var selectedY=0
-        var strength=38
-        val scroll=ScrollView(this).apply {isFillViewport=false}
-        val wrapper=LinearLayout(this).apply{
-            orientation=LinearLayout.VERTICAL
-            setPadding(dp(14),dp(8),dp(14),dp(8))
-        }
-        scroll.addView(wrapper)
-
-        wrapper.addView(label(getString(R.string.perspective_easy_hint),13f,BG,true).apply{
-            setPadding(dp(6),0,dp(5),dp(8))
-        })
-        wrapper.addView(editor,LinearLayout.LayoutParams(-1,dp(264)))
-        wrapper.addView(label(getString(R.string.perspective_direction),13f,BG,true).apply{
-            setPadding(dp(5),dp(10),dp(5),dp(5))
-        })
-        val directionLabel=label(getString(R.string.perspective_straight),11f,BG).apply{
-            gravity=Gravity.CENTER
-            setPadding(0,dp(2),0,dp(6))
-        }
-        val directions=listOf(
-            Triple("↖",-1,-1),Triple("↑",0,-1),Triple("↗",1,-1),
-            Triple("←",-1,0),Triple("⊙",0,0),Triple("→",1,0),
-            Triple("↙",-1,1),Triple("↓",0,1),Triple("↘",1,1)
-        )
-        val grid=GridLayout(this).apply{
-            columnCount=3
-            alignmentMode=GridLayout.ALIGN_BOUNDS
-        }
-        directions.forEach{(symbol,dx,dy)->
-            val btn=button(symbol,"outlined"){
-                selectedX=dx;selectedY=dy
-                editor.setPreset(dx,dy,strength)
-                directionLabel.text=if(dx==0&&dy==0)getString(R.string.perspective_straight)
-                    else getString(R.string.perspective_direction_selected)+" "+symbol
-            }.apply {textSize=21f;contentDescription=getString(R.string.perspective_direction)+" "+symbol}
-            grid.addView(btn,GridLayout.LayoutParams().apply{
-                width=dp(76);height=dp(48)
-                setMargins(dp(4),dp(2),dp(4),dp(2))
-            })
-        }
-        wrapper.addView(grid,LinearLayout.LayoutParams(-2,-2).apply {gravity=Gravity.CENTER_HORIZONTAL})
-        wrapper.addView(directionLabel)
-        val strengthValue=label(getString(R.string.perspective_strength)+" 38%",12f,BG,true).apply{
-            setPadding(dp(5),dp(8),0,0)
-        }
-        wrapper.addView(strengthValue)
-        wrapper.addView(SeekBar(this).apply{
-            max=100
-            progress=strength
-            setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{
-                override fun onStartTrackingTouch(s:SeekBar) = Unit
-                override fun onStopTrackingTouch(s:SeekBar) = Unit
-                override fun onProgressChanged(s:SeekBar,p:Int,fromUser:Boolean){
-                    if(fromUser){
-                        strength=p
-                        strengthValue.text=getString(R.string.perspective_strength)+" "+p+"%"
-                        if(selectedX!=0||selectedY!=0)editor.setPreset(selectedX,selectedY,strength)
-                    }
+        if(livePerspectivePanel!=null)return
+        if(canvas.selected==null){toast(R.string.no_selection);return}
+        perspectiveBaseline=canvas.state()
+        perspectiveOriginal=canvas.selectedPerspective()?.copyOf()
+        perspectiveCandidate=perspectiveOriginal?.copyOf()
+        perspectiveLaunchedFromEditor=editing
+        perspectiveComparing=false
+        if(editing)setFocusMode(true)
+        canvas.showSelectionHandles=false
+        canvas.perspectivePreview=true
+        canvas.perspectiveFineTune=false
+        focusToolbar.visibility=View.GONE
+        toolsShortcut.visibility=View.GONE
+        val panel=LivePerspectivePanel(this,
+            onChange={points->
+                perspectiveComparing=false
+                perspectiveCandidate=points.copyOf()
+                canvas.setPerspective(points)
+            },
+            onFine={enabled->
+                if(perspectiveComparing){
+                    perspectiveComparing=false
+                    perspectiveCandidate?.let{canvas.setPerspective(it)}
                 }
+                canvas.perspectiveFineTune=enabled
+            },
+            onCompare={before->
+                perspectiveComparing=before
+                if(before)canvas.setPerspective(PerspectiveGeometry.IDENTITY)
+                else perspectiveCandidate?.let{canvas.setPerspective(it)}
+            },
+            onFreeze={toggleFrozenCamera()},
+            onReset={
+                perspectiveComparing=false
+                perspectiveCandidate=PerspectiveGeometry.IDENTITY.copyOf()
+                canvas.setPerspective(PerspectiveGeometry.IDENTITY)
+                canvas.perspectiveFineTune=false
+            },
+            onCancel={finishLivePerspective(false)},
+            onApply={finishLivePerspective(true)}
+        )
+        livePerspectivePanel=panel
+        panel.setFrozen(frozenCameraFrame!=null)
+        canvasHolder.addView(panel,
+            FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
+                setMargins(dp(12),0,dp(12),dp(13))
             })
-        },LinearLayout.LayoutParams(-1,dp(48)))
-        wrapper.addView(CheckBox(this).apply{
-            text=getString(R.string.perspective_fine_adjust)
-            setTextColor(BG)
-            textSize=13f
-            minHeight=dp(48)
-            setOnCheckedChangeListener{_,checked->editor.fineAdjust=checked}
-        })
-        wrapper.addView(label(getString(R.string.perspective_fine_hint),11f,BG).apply{
-            setPadding(dp(6),0,dp(5),dp(8))
-        })
+        canvas.invalidate()
+    }
 
-        val dialog=AlertDialog.Builder(this).setTitle(R.string.perspective)
-            .setView(scroll)
-            .setPositiveButton(R.string.apply){_,_->
-                checkpoint()
-                canvas.setPerspective(editor.result())
-                syncControls()
-            }.setNegativeButton(R.string.cancel,null)
-            .setNeutralButton(R.string.perspective_reset,null).create()
-        dialog.setOnShowListener{
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener{
-                selectedX=0;selectedY=0
-                editor.reset()
-                directionLabel.text=getString(R.string.perspective_straight)
+    /** Applying adds a single Undo step; cancel restores the exact previous state. */
+    private fun finishLivePerspective(apply:Boolean,returnToEditor:Boolean=true){
+        val panel=livePerspectivePanel?:return
+        val baseline=perspectiveBaseline
+        val original=perspectiveOriginal
+        val selected=perspectiveCandidate
+        if(apply){
+            if(selected!=null)canvas.setPerspective(selected)
+            if(baseline!=null&&original!=null&&selected!=null&&!original.contentEquals(selected)){
+                undo.push(baseline)
+                if(undo.size>30)undo.removeLast()
+                redo.clear()
             }
+        }else if(baseline!=null){
+            canvas.restore(baseline)
         }
-        dialog.show()
+        canvas.perspectivePreview=false
+        canvas.perspectiveFineTune=false
+        canvasHolder.removeView(panel)
+        livePerspectivePanel=null
+        perspectiveBaseline=null
+        perspectiveOriginal=null
+        perspectiveCandidate=null
+        perspectiveComparing=false
+        if(frozenCameraFrame!=null)releaseFrozenCamera(restart=true)
+        focusToolbar.visibility=if(!editing)View.VISIBLE else View.GONE
+        syncControls()
+        if(returnToEditor&&perspectiveLaunchedFromEditor){
+            perspectiveLaunchedFromEditor=false
+            setFocusMode(false)
+        }else perspectiveLaunchedFromEditor=false
+    }
+
+    private fun toggleFrozenCamera(){
+        if(frozenCameraFrame!=null){
+            releaseFrozenCamera(restart=true)
+            livePerspectivePanel?.setFrozen(false)
+            return
+        }
+        if(!liveMode){
+            Toast.makeText(this,if(resources.configuration.locales[0].language=="tr")
+                "Dondurmak için canlı kamerayı açın." else "Start the live camera to freeze a frame.",
+                Toast.LENGTH_SHORT).show()
+            return
+        }
+        val bitmap=preview.bitmap
+        if(bitmap==null){toast(R.string.camera_not_ready);return}
+        frozenCameraFrame=bitmap
+        frozenPreview.setImageBitmap(bitmap)
+        frozenPreview.visibility=View.VISIBLE
+        liveCamera?.stop()
+        livePerspectivePanel?.setFrozen(true)
+    }
+
+    private fun releaseFrozenCamera(restart:Boolean){
+        if(frozenCameraFrame==null)return
+        frozenPreview.visibility=View.GONE
+        frozenPreview.setImageDrawable(null)
+        frozenCameraFrame=null
+        if(restart&&liveMode)liveCamera?.start()
     }
 
     /** Bottom-anchored editor settings, available without leaving Focus View. */
@@ -706,7 +735,8 @@ class MainActivity : Activity() {
 
     @Deprecated("Use system back callback when upgrading Android runtime dependencies")
     override fun onBackPressed() {
-        if (!editing) setFocusMode(false) else super.onBackPressed()
+        if(livePerspectivePanel!=null)finishLivePerspective(false)
+        else if (!editing) setFocusMode(false) else super.onBackPressed()
     }
 
     private fun syncControls() {
@@ -996,7 +1026,7 @@ class MainActivity : Activity() {
         if (canvas.artCount == 0) { toast(R.string.choose_art_first); return }
         if (exporting) return
         // Capture immutable geometry on the UI thread before any background drawing starts.
-        val currentCameraFrame = if(liveMode) preview.bitmap else null
+        val currentCameraFrame = if(liveMode) (frozenCameraFrame?:preview.bitmap) else null
         if(liveMode && currentCameraFrame == null){toast(R.string.camera_not_ready);return}
         val renderSnapshot = canvas.captureForExport(currentCameraFrame) ?: return
         exporting = true
