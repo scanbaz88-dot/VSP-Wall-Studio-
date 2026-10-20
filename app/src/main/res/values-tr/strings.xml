@@ -203,4 +203,5 @@
     <string name="premium_secure_checkout">Ödeme yalnızca Google Play üzerinden alınır. Satın alma güvenli sunucuda doğrulanır.</string>
     <string name="premium_scene_locked">Bu hazır oda Ömür Boyu Premium kapsamındadır. Önce Premium satın alabilir veya mevcut satın alımınızı geri yükleyebilirsiniz.</string>
     <string name="room_frame_ready">Tabloya uygun duvar</string>
+    <string name="premium_limit_projects">Ücretsiz sürümde en fazla 3 isimli proje kaydedilebilir. Sınırsız proje için Ömür Boyu Premium gerekir.</string>
 </resources>
