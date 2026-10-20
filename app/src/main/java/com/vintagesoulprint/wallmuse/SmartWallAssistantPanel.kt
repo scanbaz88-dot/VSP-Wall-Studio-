@@ -20,7 +20,7 @@ class SmartWallAssistantPanel(
     private val close:()->Unit
 ):LinearLayout(context) {
     enum class Action {
-        PICK_WALL, LIVE_CAMERA, ADD_ART, CROP, PRINT_SIZE,
+        PICK_WALL, ROOM_LIBRARY, LIVE_CAMERA, ADD_ART, CROP, PRINT_SIZE,
         MEASURE, ALIGN_LINE, PERSPECTIVE, FRAME_ADVICE, SAVE_PROJECT,
         EXPORT, GALLERY
     }
@@ -86,9 +86,10 @@ class SmartWallAssistantPanel(
         }
         when(step){
             0->{
-                addAction(tr("Fotoğraf seç","Wall photo"),Action.PICK_WALL,true)
+                addAction(tr("Hazır oda","Ready rooms"),Action.ROOM_LIBRARY,true)
+                addAction(tr("Fotoğraf seç","Wall photo"),Action.PICK_WALL)
                 addAction(if(live)tr("Kamera açık","Camera on")
-                    else tr("Canlı kamera","Live camera"),Action.LIVE_CAMERA)
+                    else tr("Canlı","Live"),Action.LIVE_CAMERA)
             }
             1->{
                 addAction(tr("＋ Eser ekle","＋ Add artwork"),Action.ADD_ART,true)
