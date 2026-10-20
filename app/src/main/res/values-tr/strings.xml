@@ -74,4 +74,15 @@
     <string name="focus_settings">Ayarlar</string>
     <string name="perspective">Perspektif</string>
     <string name="perspective_hint">Dört köşeyi parmağınla taşıyarak tabloyu duvarın açısına uydur. Çerçeve de aynı perspektifte döner.</string>
+    <string name="perspective_easy_hint">1. Yönü seç  2. Gücü ayarla  3. Uygula</string>
+    <string name="perspective_direction">Bakış yönü (8 yön)</string>
+    <string name="perspective_straight">Düz görünüm · perspektif yok</string>
+    <string name="perspective_direction_selected">Seçilen yön:</string>
+    <string name="perspective_strength">Perspektif gücü</string>
+    <string name="perspective_fine_adjust">İnce ayar: köşeleri elle taşı</string>
+    <string name="perspective_fine_hint">İsteğe bağlı: daha hassas açı için işaretli köşeleri sürükle.</string>
+    <string name="perspective_reset">SIFIRLA</string>
+    <string name="quick_guide">3 kolay adım: 1. Duvar fotoğrafı veya canlı kamerayı açın. 2. Eser ekleyin ve parmağınızla sürükleyin; iki parmakla boyutlandırın. 3. Perspektif için önce sekiz yön tuşundan birini, sonra gücünü seçin. Daha fazla alan için Focus View kullanın.</string>
+    <string name="scroll_tools">↓ Düzenleme araçları</string>
+    <string name="center_art">Eseri ortala</string>
 </resources>
