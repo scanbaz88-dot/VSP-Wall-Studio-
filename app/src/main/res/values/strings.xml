@@ -85,4 +85,5 @@
     <string name="quick_guide">Three easy steps: 1. Choose a wall photo or open the live camera. 2. Add artwork, drag with one finger, pinch with two to resize. 3. Select one of eight perspective directions and adjust strength. Use Focus View for more space.</string>
     <string name="scroll_tools">↓ Editing tools</string>
     <string name="center_art">Center artwork</string>
+    <string name="quick_guide_title">How to use</string>
 </resources>
