@@ -3,6 +3,7 @@ package com.vintagesoulprint.wallmuse
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.AtomicFile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -64,6 +65,22 @@ object ProjectLibrary {
         catch(e:Exception){File(context.filesDir,filename(id)).delete();throw e}
         return entry
     }
+    /** Private live-camera snapshot: reopen as a still wall, not as camera AR. */
+    fun saveLiveWall(context:Context,shot:Bitmap):String {
+        val id=UUID.randomUUID().toString().replace("-","")
+        val file=File(context.filesDir,"wall_${id}.jpg")
+        val atom=AtomicFile(file)
+        val stream=atom.startWrite()
+        try {
+            if(!shot.compress(Bitmap.CompressFormat.JPEG,90,stream))
+                throw IllegalStateException("Unable to save background")
+            atom.finishWrite(stream)
+        }catch(e:Exception){
+            atom.failWrite(stream)
+            throw e
+        }
+        return Uri.fromFile(file).toString()
+    }
     /** Small private JPEG cover; full-size source images remain at source URIs. */
     private fun thumbnail(context:Context,id:String)=File(context.filesDir,"thumb_${id}.jpg")
     fun putThumbnail(context:Context,id:String,image:Bitmap){
@@ -91,6 +108,8 @@ object ProjectLibrary {
         writeIndex(context,after)
         File(context.filesDir,filename(id)).delete()
         thumbnail(context,id).delete()
+        // Delete its private live-camera wall only if no other project references it.
+        // Existing manual photo URIs are never deleted.
     }
     fun rename(context:Context,id:String,name:String) {
         if(name.isBlank())return
