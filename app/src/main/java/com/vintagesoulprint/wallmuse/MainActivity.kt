@@ -731,7 +731,8 @@ class MainActivity : Activity() {
             getString(R.string.reset),
             getString(R.string.quick_guide_title),
             getString(R.string.group_studio),
-            getString(R.string.measurement_guides)
+            getString(R.string.measurement_guides),
+            "✦ "+getString(R.string.smart_assistant)
         )
         val dialog=AlertDialog.Builder(this)
             .setTitle(R.string.focus_settings)
@@ -757,6 +758,7 @@ class MainActivity : Activity() {
                     10->showQuickGuide()
                     11->showGroupStudio()
                     12->toggleDimensions()
+                    13->startSmartWallAssistant()
                 }
             }.setNegativeButton(R.string.cancel,null).create()
         dialog.setOnShowListener{
