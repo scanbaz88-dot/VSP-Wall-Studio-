@@ -23,6 +23,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.GridLayout
 import android.text.InputType
@@ -61,6 +62,9 @@ class MainActivity : Activity() {
     }
 
     private lateinit var root: LinearLayout
+    private lateinit var editorScroll: ScrollView
+    private var normalPreviewHeight=0
+    private var savedEditorScroll=0
     private lateinit var headerBar: LinearLayout
     private lateinit var fullscreenExitButton: Button
     private lateinit var canvas: WallCanvasView
@@ -211,7 +215,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(BG)
         }
-        setContentView(root)
+        editorScroll=ScrollView(this).apply{
+            isFillViewport=true
+            clipToPadding=false
+            overScrollMode=View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            addView(root,ScrollView.LayoutParams(-1,-2))
+        }
+        setContentView(editorScroll)
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -320,7 +330,10 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
                 setMargins(dp(12),0,dp(12),dp(15))
             })
-        root.addView(canvasHolder, LinearLayout.LayoutParams(-1, 0, 1f))
+        // Full-height editor preview: approximately 75% of the device screen.
+        // The editing tools remain accessible by scrolling, not by shrinking video.
+        normalPreviewHeight=(resources.displayMetrics.heightPixels*.75f).toInt().coerceAtLeast(dp(300))
+        root.addView(canvasHolder,LinearLayout.LayoutParams(-1,normalPreviewHeight))
 
         tools = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -456,7 +469,11 @@ class MainActivity : Activity() {
     override fun onResume(){super.onResume();if(liveMode)liveCamera?.start();if(!editing)applyImmersiveBars(true)}
 
     private fun setFocusMode(active: Boolean) {
+        if(active)savedEditorScroll=editorScroll.scrollY
         editing = !active
+        canvasHolder.layoutParams=canvasHolder.layoutParams.apply{
+            height=if(active)resources.displayMetrics.heightPixels.coerceAtLeast(dp(360)) else normalPreviewHeight
+        }
         val visibility = if(active)View.GONE else View.VISIBLE
         headerBar.visibility=visibility
         tools.visibility=visibility
@@ -475,6 +492,8 @@ class MainActivity : Activity() {
         syncControls()
         applyImmersiveBars(active)
         root.requestApplyInsets()
+        if(active)editorScroll.post{editorScroll.scrollTo(0,0)}
+        else editorScroll.post{editorScroll.scrollTo(0,savedEditorScroll)}
     }
 
     private fun adjustFocusSize(delta:Float) {
