@@ -1104,7 +1104,20 @@ class MainActivity : Activity() {
                 val name=input.text.toString().trim()
                 if(name.isBlank()){toast(R.string.name_required);return@setPositiveButton}
                 try{
-                    ProjectLibrary.save(this,name,wallUri?.toString(),canvas.state(),canvas.showArtwork)
+                    val photo=if(liveMode)(frozenCameraFrame?:preview.bitmap)else null
+                    if(liveMode&&photo==null){toast(R.string.camera_not_ready);return@setPositiveButton}
+                    val wallSource=if(photo!=null)ProjectLibrary.saveLiveWall(this,photo)
+                        else wallUri?.toString()
+                    val entry=ProjectLibrary.save(this,name,wallSource,canvas.state(),canvas.showArtwork)
+                    // 520 px cover; avoid storing a duplicate full-resolution render.
+                    try {
+                        val render=canvas.captureForExport(photo)
+                        if(render!=null){
+                            val cover=canvas.exportBitmap(render,520)
+                            try{ProjectLibrary.putThumbnail(this,entry.id,cover)}
+                            finally{cover.recycle()}
+                        }
+                    }catch(_:Exception){ /* A failed cover never loses the saved project. */ }
                     Toast.makeText(this,getString(R.string.saved),Toast.LENGTH_SHORT).show()
                 }catch(_:Exception){toast(R.string.save_error)}
             }.show()
@@ -1221,7 +1234,10 @@ class MainActivity : Activity() {
     }
 
     private fun decodeBitmap(uri: Uri, maxDimension: Int): Bitmap {
-        val source = ImageDecoder.createSource(contentResolver, uri)
+        val source=if(uri.scheme=="file" && uri.path!=null &&
+            java.io.File(uri.path!!).canonicalFile.parentFile==filesDir.canonicalFile)
+                ImageDecoder.createSource(java.io.File(uri.path!!))
+            else ImageDecoder.createSource(contentResolver,uri)
         return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
             val longest = max(info.size.width, info.size.height)
             val sample = max(1, ceil(longest.toDouble() / maxDimension).toInt())
