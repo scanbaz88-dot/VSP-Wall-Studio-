@@ -78,6 +78,7 @@ class MainActivity : Activity() {
     private lateinit var sizeSlider: SeekBar
     private lateinit var focusToolbar: LinearLayout
     private lateinit var focusHeaderLabel: TextView
+    private lateinit var toolsShortcut: Button
     private lateinit var focusSizeLabel: TextView
     private lateinit var sizeValue: TextView
     private lateinit var angleValue: TextView
@@ -241,7 +242,8 @@ class MainActivity : Activity() {
             AlertDialog.Builder(this)
                 .setTitle(getString(R.string.about))
                 .setMessage(getString(R.string.about_message) + "\n\n" +
-                    getString(R.string.draft_hint))
+                    getString(R.string.draft_hint) + "\n\n" +
+                    getString(R.string.quick_guide))
                 .setPositiveButton("OK", null).show()
         })
         root.addView(header)
@@ -330,6 +332,14 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
                 setMargins(dp(12),0,dp(12),dp(15))
             })
+        // One-tap access to controls below the large 75%-height preview.
+        toolsShortcut=button(getString(R.string.scroll_tools),"outlined"){
+            editorScroll.smoothScrollTo(0,canvasHolder.bottom-dp(100))
+        }.apply{alpha=.94f}
+        canvasHolder.addView(toolsShortcut,
+            FrameLayout.LayoutParams(-2,dp(42),Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply{
+                setMargins(dp(6),0,dp(6),dp(14))
+            })
         // Full-height editor preview: approximately 75% of the device screen.
         // The editing tools remain accessible by scrolling, not by shrinking video.
         normalPreviewHeight=(resources.displayMetrics.heightPixels*.75f).toInt().coerceAtLeast(dp(300))
@@ -348,6 +358,7 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.frame_library), "quiet") { showFrames() })
             addAction(button(getString(R.string.wall_width), "quiet") { showWallWidth() })
             addAction(button(getString(R.string.random_frame), "quiet") { randomFrame() })
+            addAction(button(getString(R.string.center_art), "quiet") { centerArtwork() })
             addAction(button(getString(R.string.duplicate), "quiet") {
                 if (canvas.selected == null) toast(R.string.no_selection)
                 else if (canvas.artCount >= 12) toast(R.string.max_art)
@@ -483,6 +494,7 @@ class MainActivity : Activity() {
         fullscreenExitButton.visibility=if(active)View.VISIBLE else View.GONE
         focusToolbar.visibility=if(active)View.VISIBLE else View.GONE
         focusHeaderLabel.visibility=if(active)View.VISIBLE else View.GONE
+        toolsShortcut.visibility=if(active)View.GONE else View.VISIBLE
         focusButton.text=getString(if(active)R.string.edit else R.string.focus)
         canvas.focusMode=active
         canvas.showSelectionHandles=!active
@@ -501,6 +513,19 @@ class MainActivity : Activity() {
         checkpoint()
         canvas.setSize((layer.widthFraction+delta).coerceIn(.08f,.88f))
         syncControls()
+    }
+
+    private fun showQuickGuide(){
+        AlertDialog.Builder(this)
+            .setTitle(R.string.quick_guide_title)
+            .setMessage(R.string.quick_guide)
+            .setPositiveButton("OK",null)
+            .show()
+    }
+
+    private fun centerArtwork(){
+        if(canvas.selected==null){toast(R.string.no_selection);return}
+        checkpoint();canvas.centerSelected();syncControls()
     }
 
     private fun rotateArtwork(){
@@ -621,9 +646,11 @@ class MainActivity : Activity() {
             getString(R.string.crop),
             getString(R.string.perspective),
             "⟳ 90°",
+            getString(R.string.center_art),
             getString(R.string.duplicate),
             getString(R.string.remove),
-            getString(R.string.reset)
+            getString(R.string.reset),
+            getString(R.string.quick_guide_title)
         )
         val dialog=AlertDialog.Builder(this)
             .setTitle(R.string.focus_settings)
@@ -635,16 +662,18 @@ class MainActivity : Activity() {
                     3->showCropSettings()
                     4->showPerspectiveSettings()
                     5->rotateArtwork()
-                    6->{
+                    6->centerArtwork()
+                    7->{
                         if(canvas.selected==null)toast(R.string.no_selection)
                         else if(canvas.artCount>=12)toast(R.string.max_art)
                         else{checkpoint();canvas.duplicateSelected();syncControls()}
                     }
-                    7->{
+                    8->{
                         if(canvas.selected==null)toast(R.string.no_selection)
                         else{checkpoint();canvas.removeSelected();syncControls()}
                     }
-                    8->confirmClear()
+                    9->confirmClear()
+                    10->showQuickGuide()
                 }
             }.setNegativeButton(R.string.cancel,null).create()
         dialog.setOnShowListener{
