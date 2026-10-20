@@ -118,6 +118,8 @@ class MainActivity : Activity() {
     private var editing = true
     private var exporting = false
     private var billingInspector:PlayBillingReadiness?=null
+    private var premiumBilling:PlayPremiumBillingController?=null
+    private var activeReadyScene:RoomSceneCatalog.Scene?=null
     private var pendingCamera: Uri? = null
     private var wallUri: Uri? = null
     private val undo = ArrayDeque<WallCanvasView.State>()
@@ -586,6 +588,8 @@ class MainActivity : Activity() {
     override fun onDestroy(){
         billingInspector?.close()
         billingInspector=null
+        premiumBilling?.close()
+        premiumBilling=null
         super.onDestroy()
     }
     override fun onPause(){liveCamera?.stop();super.onPause()}
@@ -1350,56 +1354,71 @@ class MainActivity : Activity() {
             }.setNegativeButton(R.string.cancel,null).show()
     }
 
-    /** Truthful Play readiness screen: no payment can start from this build. */
+    /** Google Play Lifetime Premium: explicit checkout only after server + product ready. */
     private fun showPremiumCenter(){
+        premiumBilling?.close()
+        premiumBilling=null
         val panel=LinearLayout(this).apply{
             orientation=LinearLayout.VERTICAL
-            setPadding(dp(19),dp(12),dp(19),dp(12))
+            setPadding(dp(20),dp(10),dp(20),dp(12))
         }
         fun line(body:String,size:Float=14f,strong:Boolean=false):TextView=
-            label(body,size,BG,strong).apply{setPadding(dp(2),dp(5),dp(2),dp(5))}
+            label(body,size,BG,strong).apply{setPadding(dp(3),dp(5),dp(3),dp(5))}
         panel.addView(line(getString(R.string.premium_lifetime_title),18f,true))
         panel.addView(line(getString(R.string.premium_lifetime_about),13f))
-        panel.addView(line(getString(R.string.premium_test_access),13f,true))
-        val comparisons=listOf(
-            getString(R.string.premium_compare_projects),
-            getString(R.string.premium_compare_frames),
-            getString(R.string.premium_compare_export),
-            getString(R.string.premium_compare_gallery)
-        )
-        comparisons.forEach{panel.addView(line("✓  "+it,12f))}
-        panel.addView(line(getString(R.string.premium_no_payment),13f,true))
-        val feedback=line(getString(R.string.premium_status_idle),12f)
-        panel.addView(feedback)
-        panel.addView(button(getString(R.string.premium_check_play),"outlined"){
-            feedback.text=getString(R.string.premium_checking)
-            billingInspector?.close()
-            val inspector=PlayBillingReadiness(this)
-            billingInspector=inspector
-            inspector.inspect { status->
-                if(!isDestroyed && billingInspector===inspector){
-                    val info=when{
-                        !status.connected->getString(R.string.premium_play_unavailable)
-                        status.pendingOnPlay->getString(R.string.premium_play_pending)
-                        status.ownedOnPlay->getString(R.string.premium_play_unverified)
-                        status.productFound->getString(R.string.premium_play_product_found)
-                        else->getString(R.string.premium_play_not_listed)
-                    }
-                    val price=status.localizedPrice?.let{
-                        "\n"+getString(R.string.premium_play_price)+": "+it
-                    }?:""
-                    feedback.text=info+price+"\n"+getString(R.string.premium_no_payment)
-                }
-            }
+        val status=line(
+            if(BuildConfig.DEBUG)getString(R.string.premium_test_access)
+            else if(PremiumSession.verified)getString(R.string.premium_verified_live)
+            else getString(R.string.premium_status_idle),13f,true)
+        panel.addView(status)
+        listOf(R.string.premium_compare_projects,R.string.premium_compare_frames,
+            R.string.premium_compare_export,R.string.premium_compare_gallery)
+            .forEach{panel.addView(line("✓  "+getString(it),12f))}
+        val connection=line(getString(R.string.premium_checking),12f)
+        panel.addView(connection)
+        val buy=button(getString(R.string.premium_buy_lifetime),"gold"){
+            premiumBilling?.purchase()
+        }
+        buy.isEnabled=false
+        panel.addView(buy,LinearLayout.LayoutParams(-1,dp(49)).apply{
+            topMargin=dp(8);bottomMargin=dp(7)
+        })
+        panel.addView(button(getString(R.string.premium_restore),"outlined"){
+            premiumBilling?.restore()
         },LinearLayout.LayoutParams(-1,dp(46)))
-        panel.addView(line(getString(R.string.premium_privacy_note),11f))
+        panel.addView(line(getString(R.string.premium_no_payment),11f))
         val scroll=ScrollView(this).apply{addView(panel)}
-        AlertDialog.Builder(this)
+        val dialog=AlertDialog.Builder(this)
             .setTitle(R.string.premium_center)
             .setView(scroll)
-            .setPositiveButton(R.string.close){_,_->billingInspector?.close();billingInspector=null}
-            .setOnCancelListener{billingInspector?.close();billingInspector=null}
-            .show()
+            .setPositiveButton(R.string.close,null)
+            .create()
+        dialog.setOnDismissListener{
+            premiumBilling?.close()
+            premiumBilling=null
+        }
+        dialog.show()
+        val controller=PlayPremiumBillingController(this,
+            report={value->
+                if(dialog.isShowing)connection.text=value
+            },
+            refresh={
+                if(dialog.isShowing){
+                    buy.isEnabled=premiumBilling?.canCheckout==true
+                    status.text=when{
+                        BuildConfig.DEBUG->getString(R.string.premium_test_access)
+                        PremiumSession.verified->getString(R.string.premium_verified_live)
+                        else->getString(R.string.premium_no_payment)
+                    }
+                }
+            }
+        )
+        premiumBilling=controller
+        controller.connect()
+        buy.isEnabled=controller.canCheckout
+        if(!PremiumPolicy.checkoutEnabled(BuildConfig.DEBUG)){
+            connection.text=getString(R.string.premium_requires_console)
+        }
     }
 
     private fun recommendFrame(){
@@ -1620,6 +1639,7 @@ class MainActivity : Activity() {
         if(liveMode)disableLiveCamera()
         if(keepArtwork)canvas.replaceWallKeepArtwork(image)else canvas.setWall(image)
         wallUri=uri
+        activeReadyScene=scene
         undo.clear();redo.clear()
         canvas.setBeforeMode(false)
         beforeButton.text=getString(R.string.before)
@@ -1737,6 +1757,7 @@ class MainActivity : Activity() {
     }
 
     private fun loadWall(uri: Uri) {
+        activeReadyScene=null
         if(liveMode)disableLiveCamera()
         try {
             val bitmap = decodeBitmap(uri, 4096)
@@ -1751,8 +1772,15 @@ class MainActivity : Activity() {
     private fun loadArt(uri: Uri) {
         try {
             val bitmap = decodeBitmap(uri, 2400)
+            val wasEmpty=canvas.artCount==0
             checkpoint()
-            if (!canvas.addArtwork(bitmap, uri.toString())) toast(R.string.max_art)
+            if (!canvas.addArtwork(bitmap, uri.toString()))toast(R.string.max_art)
+            else if(wasEmpty){
+                activeReadyScene?.let{scene->
+                    canvas.suggestSelectedPlacement(scene.suggestedX,
+                        scene.suggestedY,scene.suggestedWidth)
+                }
+            }
         } catch (_: Exception) { toast(R.string.image_error) }
     }
 
