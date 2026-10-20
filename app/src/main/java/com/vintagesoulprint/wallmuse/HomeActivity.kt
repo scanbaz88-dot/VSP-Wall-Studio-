@@ -49,6 +49,7 @@ class HomeActivity:Activity() {
         })
     }
     private lateinit var recentSection:LinearLayout
+    private var automaticPlayRestore:PlayPremiumBillingController?=null
     override fun onCreate(savedInstanceState:Bundle?){
         super.onCreate(savedInstanceState)
         window.statusBarColor=dark
@@ -58,6 +59,20 @@ class HomeActivity:Activity() {
     override fun onResume(){
         super.onResume()
         if(::recentSection.isInitialized)fillRecent()
+        // Real Play customers should not have to press Restore every time
+        // they reopen the application. Never run this in preview builds.
+        if(!BuildConfig.DEBUG &&
+            BuildConfig.PREMIUM_VERIFY_URL.startsWith("https://") &&
+            automaticPlayRestore==null){
+            automaticPlayRestore=PlayPremiumBillingController(this,
+                report={},refresh={})
+            automaticPlayRestore?.connect()
+        }
+    }
+    override fun onDestroy(){
+        automaticPlayRestore?.close()
+        automaticPlayRestore=null
+        super.onDestroy()
     }
     private fun render(){
         val outer=LinearLayout(this).apply{
