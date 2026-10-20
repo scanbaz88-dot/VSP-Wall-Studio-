@@ -35,8 +35,11 @@ object PremiumPolicy {
     )
     /** Never paywall a completed draft while entitlement restoration is pending. */
     /** Payments are deliberately unavailable until the real backend is deployed. */
-    const val PLAY_PRODUCT_CONFIGURED = false
-    const val SECURE_VERIFIER_CONFIGURED = false
+    // Real payment readiness is decided by Play product discovery and an
+    // injected HTTPS verifier. A debug package can NEVER launch checkout.
+    val PLAY_PRODUCT_CONFIGURED get()=false // Query Google Play dynamically.
+    val SECURE_VERIFIER_CONFIGURED get()=
+        BuildConfig.PREMIUM_VERIFY_URL.startsWith("https://")
     enum class PaymentState { NONE, PENDING, PURCHASED, CANCELLED, REFUNDED }
     data class ReceiptValidation(
         val state:PaymentState,
@@ -49,7 +52,7 @@ object PremiumPolicy {
         r.correctProduct && !r.revoked
     /** Never accept cached Android preferences as a payment authorization. */
     fun checkoutEnabled(debugPreview:Boolean)=
-        !debugPreview && PLAY_PRODUCT_CONFIGURED && SECURE_VERIFIER_CONFIGURED
+        !debugPreview && SECURE_VERIFIER_CONFIGURED
     fun validPlayPrice(value:String?):String?=value?.takeIf{it.isNotBlank()}
     fun mayOpenExistingProject(saved:Boolean)=saved
 }
