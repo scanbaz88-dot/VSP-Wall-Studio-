@@ -1173,7 +1173,7 @@ class MainActivity : Activity() {
     private fun doAssistantAction(action:SmartWallAssistantPanel.Action){
         when(action){
             SmartWallAssistantPanel.Action.PICK_WALL->pickImage(REQUEST_WALL)
-            SmartWallAssistantPanel.Action.ROOM_LIBRARY->showRoomScenes()
+            SmartWallAssistantPanel.Action.ROOM_LIBRARY->openRoomLibrary()
             SmartWallAssistantPanel.Action.LIVE_CAMERA->toggleLiveCamera()
             SmartWallAssistantPanel.Action.ADD_ART->{
                 if(canvas.artCount>=12)toast(R.string.max_art)
