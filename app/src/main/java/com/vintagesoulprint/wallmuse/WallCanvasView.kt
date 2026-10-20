@@ -15,7 +15,11 @@ class WallCanvasView(context: Context) : View(context) {
         var angle: Float = 0f, var frame: Int = 1, val sourceUri: String? = null,
         var printW: Float = 60f, var printH: Float = 40f, var trim: Float = 0f,
         var cropLeft: Float = 0f, var cropTop: Float = 0f,
-        var cropRight: Float = 1f, var cropBottom: Float = 1f
+        var cropRight: Float = 1f, var cropBottom: Float = 1f,
+        var tlx:Float=0f, var tly:Float=0f,
+        var trx:Float=1f, var tryY:Float=0f,
+        var brx:Float=1f, var bry:Float=1f,
+        var blx:Float=0f, var bly:Float=1f
     ) { fun snapshot() = copy() }
     data class State(val elements: List<ArtLayer>, val selectedId: Long?)
     data class RenderSnapshot(val photo: Bitmap, val elements: List<ArtLayer>)
@@ -25,6 +29,27 @@ class WallCanvasView(context: Context) : View(context) {
     var selectedId: Long? = null; private set
     var showArtwork = true; private set
     var showSelectionHandles = true
+    var focusMode=false
+        set(value){field=value;focusHandlesVisible=false;invalidate()}
+    private var focusHandlesVisible=false
+    private val hideFocusHandles=Runnable {focusHandlesVisible=false;invalidate()}
+    private fun perspective(layer:ArtLayer):FloatArray=floatArrayOf(
+        layer.tlx,layer.tly,layer.trx,layer.tryY,
+        layer.brx,layer.bry,layer.blx,layer.bly
+    )
+    fun selectedPerspective():FloatArray?=selected?.let{perspective(it)}
+    fun setPerspective(points:FloatArray){
+        if(!PerspectiveGeometry.valid(points))return
+        selected?.apply{
+            tlx=points[0];tly=points[1];trx=points[2];tryY=points[3]
+            brx=points[4];bry=points[5];blx=points[6];bly=points[7]
+        }
+        invalidate()
+    }
+    fun rotateQuarterTurn(){
+        selected?.let{it.angle=PerspectiveGeometry.quarterTurn(it.angle)}
+        onSelectionChanged?.invoke();invalidate()
+    }
     var livePreview = false
         set(value){field=value;invalidate()}
     var onSelectionChanged: (() -> Unit)? = null
@@ -100,7 +125,7 @@ class WallCanvasView(context: Context) : View(context) {
         invalidate()
     }
     fun setSize(frac:Float){selected?.widthFraction=frac.coerceIn(.08f,.88f);invalidate()}
-    fun setAngle(degrees:Float){selected?.angle=degrees.coerceIn(-45f,45f);invalidate()}
+    fun setAngle(degrees:Float){selected?.angle=PerspectiveGeometry.rotate(degrees);invalidate()}
     fun setBeforeMode(before:Boolean){showArtwork=!before;invalidate()}
     fun state()=State(artworks.map{it.snapshot()},selectedId)
     fun restore(state:State){artworks.clear();artworks.addAll(state.elements.map{it.snapshot()});selectedId=state.selectedId
@@ -111,11 +136,11 @@ class WallCanvasView(context: Context) : View(context) {
             // Transparent Canvas over the TextureView; match preview's view coordinates.
             photoRect.set(0f,0f,width.toFloat(),height.toFloat())
             if(showArtwork)artworks.forEach{drawArtwork(c,photoRect,it,
-                showSelectionHandles&&it.id==selectedId,brush)}
+                (showSelectionHandles||(focusMode&&focusHandlesVisible))&&it.id==selectedId,brush)}
         } else {
             val bound=RectF(10f*density,8f*density,width-10f*density,height-8f*density)
             photoRect.set(fit(room.width.toFloat(),room.height.toFloat(),bound))
-            renderScene(c,photoRect,showArtwork&&showSelectionHandles)
+            renderScene(c,photoRect,showArtwork&&(showSelectionHandles||(focusMode&&focusHandlesVisible)))
         }
     }
     private fun fit(w:Float,h:Float,b:RectF):RectF {val s=min(b.width()/w,b.height()/h);val aw=w*s;val ah=h*s
@@ -140,6 +165,7 @@ class WallCanvasView(context: Context) : View(context) {
         val exterior=FrameEngine.exterior(interior,l.frame,l.printW)
         val oval=FrameEngine.isOval(l.frame)||FrameEngine.isRound(l.frame)
         c.save();c.rotate(l.angle,cx,cy)
+        c.concat(PerspectiveGeometry.matrix(exterior,perspective(l)))
         // A soft ambient shadow plus a short contact shadow, both follow the chosen silhouette.
         p.reset();p.isAntiAlias=true;p.color=Color.argb(25,15,13,11)
         shadowShape(c,exterior,oval,scale*.030f,scale*.042f,p)
@@ -222,14 +248,34 @@ class WallCanvasView(context: Context) : View(context) {
         c.drawRoundRect(RectF(inner.left+1,inner.top+1,inner.right-1,inner.bottom-1),1f,1f,p)
         p.style=Paint.Style.FILL
     }
-    private fun hitTest(x:Float,y:Float):ArtLayer?{for(i in artworks.size-1 downTo 0){val l=artworks[i]
-        val(w,h)=artworkDimensions(l,photoRect);val cx=photoRect.left+l.cx*photoRect.width();val cy=photoRect.top+l.cy*photoRect.height()
-        if(SceneMath.containsRotatedPoint(x-cx,y-cy,w,h,l.angle,18*density))return l};return null}
+    private fun hitTest(x:Float,y:Float):ArtLayer?{
+        for(i in artworks.size-1 downTo 0){
+            val l=artworks[i]
+            val (w,h)=artworkDimensions(l,photoRect)
+            val cx=photoRect.left+l.cx*photoRect.width()
+            val cy=photoRect.top+l.cy*photoRect.height()
+            val inside=RectF(cx-w/2,cy-h/2,cx+w/2,cy+h/2)
+            val outside=FrameEngine.exterior(inside,l.frame,l.printW)
+            val rad=Math.toRadians(l.angle.toDouble())
+            val dx=x-cx;val dy=y-cy
+            val q=floatArrayOf(
+                cx+dx*cos(rad).toFloat()+dy*sin(rad).toFloat(),
+                cy-dx*sin(rad).toFloat()+dy*cos(rad).toFloat()
+            )
+            val inverse=Matrix()
+            if(PerspectiveGeometry.matrix(outside,perspective(l)).invert(inverse))inverse.mapPoints(q)
+            val pad=18*density
+            if(q[0] in (outside.left-pad)..(outside.right+pad) &&
+               q[1] in (outside.top-pad)..(outside.bottom+pad))return l
+        }
+        return null
+    }
     override fun onTouchEvent(e:MotionEvent):Boolean{
         if(!isEnabled||!showArtwork)return super.onTouchEvent(e)
         when(e.actionMasked){
             MotionEvent.ACTION_DOWN->{val picked=hitTest(e.x,e.y);selectedId=picked?.id
                 touchX=e.x;touchY=e.y;originalX=picked?.cx?:0f;originalY=picked?.cy?:0f
+                if(focusMode){removeCallbacks(hideFocusHandles);focusHandlesVisible=picked!=null}
                 gestureRecorded=false;pinching=false;onSelectionChanged?.invoke();invalidate();return true}
             MotionEvent.ACTION_POINTER_DOWN->{if(e.pointerCount>=2&&selected!=null){
                 if(!gestureRecorded){onGestureStart?.invoke();gestureRecorded=true}
@@ -249,8 +295,12 @@ class WallCanvasView(context: Context) : View(context) {
             MotionEvent.ACTION_POINTER_UP->{val idx=if(e.actionIndex==0)1 else 0
                 if(idx<e.pointerCount){touchX=e.getX(idx);touchY=e.getY(idx);originalX=selected?.cx?:originalX;originalY=selected?.cy?:originalY}
                 pinching=false;return true}
-            MotionEvent.ACTION_UP->{pinching=false;performClick();onSelectionChanged?.invoke();return true}
-            MotionEvent.ACTION_CANCEL->{pinching=false;return true}
+            MotionEvent.ACTION_UP->{pinching=false;performClick();onSelectionChanged?.invoke()
+                if(focusMode)postDelayed(hideFocusHandles,1300L)
+                return true}
+            MotionEvent.ACTION_CANCEL->{pinching=false
+                if(focusMode)postDelayed(hideFocusHandles,300L)
+                return true}
         };return true
     }
     override fun performClick():Boolean{super.performClick();return true}
