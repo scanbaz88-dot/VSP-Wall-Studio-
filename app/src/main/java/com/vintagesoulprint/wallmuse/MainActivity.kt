@@ -919,6 +919,131 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun showGalleryLayouts(){
+        if(canvas.artCount==0){toast(R.string.gallery_none);return}
+        val layouts=GalleryPlanner.Layout.values()
+        val choices=arrayOf(
+            getString(R.string.layout_grid),
+            getString(R.string.layout_row),
+            getString(R.string.layout_column),
+            getString(R.string.layout_salon),
+            getString(R.string.layout_pyramid)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.gallery_layout)
+            .setMessage(R.string.gallery_hint)
+            .setPositiveButton(getString(R.string.apply)){_,_->
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.gallery_layout)
+                    .setItems(choices){_,i->
+                        checkpoint()
+                        canvas.applyGalleryLayout(layouts[i])
+                        syncControls()
+                    }.setNegativeButton(R.string.cancel,null).show()
+            }.setNegativeButton(R.string.cancel,null).show()
+    }
+
+    private fun showSmartTools(){
+        val items=arrayOf(
+            getString(R.string.smart_assistant),
+            getString(R.string.auto_frame),
+            getString(R.string.reference_width),
+            getString(R.string.snap_on)+if(canvas.smartSnap)" ✓" else "",
+            getString(R.string.shadow_on)+if(canvas.ambientShadows)" ✓" else "",
+            getString(R.string.gallery_layout),
+            getString(R.string.project_library),
+            getString(R.string.premium_info)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.smart_tools)
+            .setItems(items){_,i->
+                when(i){
+                    0->AlertDialog.Builder(this).setTitle(R.string.smart_assistant)
+                        .setMessage(R.string.smart_assistant_guide)
+                        .setPositiveButton("OK",null).show()
+                    1->recommendFrame()
+                    2->beginReferenceCalibration()
+                    3->{canvas.smartSnap=!canvas.smartSnap
+                        Toast.makeText(this,
+                            getString(R.string.snap_on)+" "+if(canvas.smartSnap)"ON" else "OFF",
+                            Toast.LENGTH_SHORT).show()}
+                    4->{canvas.ambientShadows=!canvas.ambientShadows
+                        Toast.makeText(this,
+                            getString(R.string.shadow_on)+" "+if(canvas.ambientShadows)"ON" else "OFF",
+                            Toast.LENGTH_SHORT).show()}
+                    5->showGalleryLayouts()
+                    6->showProjectLibrary()
+                    7->AlertDialog.Builder(this).setTitle(R.string.premium_info)
+                        .setMessage(R.string.premium_not_active)
+                        .setPositiveButton("OK",null).show()
+                }
+            }.setNegativeButton(R.string.cancel,null).show()
+    }
+
+    private fun recommendFrame(){
+        val art=canvas.selected?:run{toast(R.string.no_selection);return}
+        val recommendation=try{FrameAdvisor.suggest(art.bitmap)}catch(_:Exception){null}
+            ?:return
+        val frameName=FrameCatalog.displayName(recommendation.frameId)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.auto_frame)
+            .setMessage(frameName)
+            .setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.apply){_,_->
+                checkpoint()
+                canvas.setFrame(recommendation.frameId)
+                syncControls()
+            }.show()
+    }
+
+    /** User provides a measured straight horizontal span, never a guessed AR distance. */
+    private fun beginReferenceCalibration(){
+        if(liveMode || wallUri==null){
+            AlertDialog.Builder(this).setMessage(R.string.calibration_photo_only)
+                .setPositiveButton("OK",null).show()
+            return
+        }
+        val input=EditText(this).apply{
+            inputType=InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            hint=getString(R.string.width_cm)
+            setText("80")
+            selectAll()
+        }
+        val wrapper=LinearLayout(this).apply{
+            orientation=LinearLayout.VERTICAL
+            setPadding(dp(22),dp(12),dp(22),dp(3))
+            addView(label(getString(R.string.calibration_reference),13f,BG))
+            addView(input)
+        }
+        AlertDialog.Builder(this).setTitle(R.string.reference_width)
+            .setView(wrapper)
+            .setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.apply){_,_->
+                val known=input.text.toString().replace(',','.').toFloatOrNull()
+                if(known==null||known !in 10f..800f){
+                    toast(R.string.invalid_size)
+                    return@setPositiveButton
+                }
+                canvas.beginWallCalibration{span->
+                    val estimate=known/span
+                    if(estimate !in 50f..1500f)toast(R.string.invalid_size)
+                    else{
+                        checkpoint()
+                        wallWidthCm=estimate
+                        getPreferences(MODE_PRIVATE).edit()
+                            .putFloat("wall_width_cm",estimate).apply()
+                        canvas.recalibrate(estimate)
+                        Toast.makeText(this,
+                            getString(R.string.calibration_done,estimate.toInt()),
+                            Toast.LENGTH_LONG).show()
+                        syncControls()
+                    }
+                }
+                Toast.makeText(this,getString(R.string.calibration_touch),Toast.LENGTH_LONG).show()
+                editorScroll.smoothScrollTo(0,0)
+            }.show()
+    }
+
     /** Existing unsaved autosave remains separate from named snapshots. */
     private fun showProjectLibrary() {
         val entries=ProjectLibrary.list(this)
