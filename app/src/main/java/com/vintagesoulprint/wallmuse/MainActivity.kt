@@ -274,6 +274,7 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.project_library), "outlined") { showProjectLibrary() })
             addAction(button(getString(R.string.my_wall_library), "outlined") { showWallLibrary() })
             addAction(button(getString(R.string.gallery_layout), "outlined") { showGalleryLayouts() })
+            addAction(button(getString(R.string.group_studio), "outlined") { showGroupStudio() })
             addAction(button(getString(R.string.smart_tools), "outlined") { showSmartTools() })
             addAction(button(getString(R.string.export_format), "outlined") { showExportFormatDialog() })
         }
@@ -299,6 +300,7 @@ class MainActivity : Activity() {
         }
         canvasHolder.addView(frozenPreview,FrameLayout.LayoutParams(-1,-1))
         canvas = WallCanvasView(this)
+        canvas.wallWidthCm=wallWidthCm
         canvas.onSelectionChanged = { syncControls() }
         canvas.onGestureStart = { checkpoint() }
         canvasHolder.addView(canvas,FrameLayout.LayoutParams(-1,-1))
@@ -693,7 +695,9 @@ class MainActivity : Activity() {
             getString(R.string.duplicate),
             getString(R.string.remove),
             getString(R.string.reset),
-            getString(R.string.quick_guide_title)
+            getString(R.string.quick_guide_title),
+            getString(R.string.group_studio),
+            getString(R.string.measurement_guides)
         )
         val dialog=AlertDialog.Builder(this)
             .setTitle(R.string.focus_settings)
@@ -717,6 +721,8 @@ class MainActivity : Activity() {
                     }
                     9->confirmClear()
                     10->showQuickGuide()
+                    11->showGroupStudio()
+                    12->toggleDimensions()
                 }
             }.setNegativeButton(R.string.cancel,null).create()
         dialog.setOnShowListener{
@@ -764,7 +770,9 @@ class MainActivity : Activity() {
             focusSizeLabel.text=if(layer==null)getString(R.string.no_selection)
             else "${PrintCatalog.num(layer.printW.toInt())} × ${PrintCatalog.num(layer.printH.toInt())} cm  ·  ${(layer.widthFraction*100).toInt()}%"
         }
-        selectedLabel.text = if(layer==null) getString(R.string.selection_hint)
+        selectedLabel.text = if(canvas.groupCount>=2)
+            getString(R.string.group_selected,canvas.groupCount)
+            else if(layer==null)getString(R.string.selection_hint)
             else getString(R.string.selected) + "  ·  " +
                 "${PrintCatalog.num(layer.printW.toInt())} × ${PrintCatalog.num(layer.printH.toInt())} cm" +
                 "  ·  " + FrameCatalog.displayName(layer.frame)
@@ -953,6 +961,84 @@ class MainActivity : Activity() {
         // A short temporary canvas avoids rebuilding textures differently.
         val temporary=WallCanvasView(this)
         return temporary.wallPhoto?:Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888)
+    }
+
+    private fun toggleDimensions(){
+        canvas.showMeasurements=!canvas.showMeasurements
+        Toast.makeText(this,getString(R.string.measure_note),Toast.LENGTH_LONG).show()
+    }
+
+    /**
+     * Editable selection persists only during this editing session. The artwork
+     * geometry itself stays in the autosave and undo/redo snapshots.
+     */
+    private fun showGroupStudio(){
+        val selected=canvas.groupSelection()
+        if(selected.size<2){showGroupPicker();return}
+        val names=arrayOf(
+            getString(R.string.group_change),
+            getString(R.string.group_align_left),
+            getString(R.string.group_align_right),
+            getString(R.string.group_align_center_x),
+            getString(R.string.group_align_top),
+            getString(R.string.group_align_bottom),
+            getString(R.string.group_align_center_y),
+            getString(R.string.group_space_x),
+            getString(R.string.group_space_y),
+            getString(R.string.group_grow),
+            getString(R.string.group_shrink),
+            getString(R.string.group_end)
+        )
+        val alignModes=GalleryGeometry.Align.values()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.group_apply)
+            .setMessage(getString(R.string.group_selected,selected.size))
+            .setPositiveButton(getString(R.string.apply)){_,_->
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.group_studio)
+                    .setItems(names){_,idx->
+                        when(idx){
+                            0->showGroupPicker()
+                            in 1..8->{
+                                checkpoint()
+                                canvas.editGroupAlign(alignModes[idx-1])
+                                syncControls()
+                            }
+                            9,10->{
+                                checkpoint()
+                                canvas.editGroupScale(if(idx==9)1.10f else .90f)
+                                syncControls()
+                            }
+                            11->{
+                                canvas.clearGroup()
+                                syncControls()
+                            }
+                        }
+                    }.setNegativeButton(R.string.cancel,null).show()
+            }.setNegativeButton(R.string.cancel,null).show()
+    }
+
+    private fun showGroupPicker(){
+        val artwork=canvas.availableArtworks()
+        if(artwork.size<2){toast(R.string.gallery_none);return}
+        val previous=canvas.groupSelection()
+        val checked=BooleanArray(artwork.size){artwork[it].first in previous}
+        AlertDialog.Builder(this)
+            .setTitle(R.string.group_choose)
+            .setMultiChoiceItems(artwork.map{it.second}.toTypedArray(),checked){_,which,value->
+                checked[which]=value
+            }
+            .setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.apply){_,_->
+                val ids=artwork.filterIndexed{idx,_->checked[idx]}.map{it.first}.toSet()
+                if(ids.size<2){
+                    Toast.makeText(this,getString(R.string.group_choose_hint),Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                canvas.selectGroup(ids)
+                syncControls()
+                Toast.makeText(this,getString(R.string.group_selected,ids.size),Toast.LENGTH_LONG).show()
+            }.show()
     }
 
     private fun showGalleryLayouts(){
