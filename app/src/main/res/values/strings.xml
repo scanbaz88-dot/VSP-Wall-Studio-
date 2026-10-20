@@ -196,4 +196,11 @@
     <string name="room_premium_preview">Premium · Test Unlocked</string>
     <string name="room_applied">%1$s scene is ready. Add your art.</string>
     <string name="room_replace_prompt">Changing the wall keeps your paintings. Use the selected scene?</string>
+    <string name="premium_verified_live">Lifetime Premium verified and active.</string>
+    <string name="premium_buy_lifetime">Buy Lifetime Premium</string>
+    <string name="premium_restore">Restore My Purchase</string>
+    <string name="premium_requires_console">Checkout is not enabled yet: Play Console product and verification server are required.</string>
+    <string name="premium_secure_checkout">Payments use Google Play only and require trusted server verification.</string>
+    <string name="premium_scene_locked">This room is included with Lifetime Premium. Purchase Premium or restore an existing purchase first.</string>
+    <string name="room_frame_ready">Artwork-ready wall</string>
 </resources>
