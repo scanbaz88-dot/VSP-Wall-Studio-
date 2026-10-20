@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "license_url": "https://www.pexels.com/license/",
   "scenes": [
     {
@@ -10,7 +10,12 @@
       "title_tr": "Bej Koltuk Köşesi",
       "photographer": "Dorin Ursulescu",
       "photo_url": "https://www.pexels.com/photo/a-beige-sofa-in-the-living-room-7160605/",
-      "free": true
+      "free": true,
+      "anchor": [
+        0.52,
+        0.32,
+        0.2
+      ]
     },
     {
       "id": "room_02",
@@ -20,47 +25,72 @@
       "title_tr": "Sıcak Bej Duvar",
       "photographer": "Lisa Anna",
       "photo_url": "https://www.pexels.com/photo/chairs-and-table-by-beige-wall-in-living-room-19878535/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.5,
+        0.31,
+        0.2
+      ]
     },
     {
       "id": "room_03",
       "category": "living",
-      "photo_id": 7101235,
-      "title_en": "White Sofa & Plant",
-      "title_tr": "Beyaz Koltuk ve Bitki",
-      "photographer": "Furknsaglam",
-      "photo_url": "https://www.pexels.com/photo/interior-of-living-room-with-couch-near-potted-plant-7101235/",
-      "free": false
+      "photo_id": 8987432,
+      "title_en": "Soft Beige Sofa Wall",
+      "title_tr": "Yumuşak Bej Salon Duvarı",
+      "photographer": "Ksenia Chernaya",
+      "photo_url": "https://www.pexels.com/photo/sofa-on-white-wall-8987432/",
+      "free": false,
+      "anchor": [
+        0.48,
+        0.35,
+        0.28
+      ]
     },
     {
       "id": "room_04",
       "category": "living",
-      "photo_id": 6914713,
-      "title_en": "Sunlit Cozy Lounge",
-      "title_tr": "Gün Işıklı Salon",
-      "photographer": "Aleks Michajlowicz",
-      "photo_url": "https://www.pexels.com/photo/a-cozy-couch-near-the-window-and-plants-6914713/",
-      "free": false
+      "photo_id": 8580720,
+      "title_en": "Bright White Sofa Wall",
+      "title_tr": "Aydınlık Beyaz Salon Duvarı",
+      "photographer": "RDNE Stock project",
+      "photo_url": "https://www.pexels.com/photo/white-sofa-beside-white-wall-8580720/",
+      "free": false,
+      "anchor": [
+        0.61,
+        0.33,
+        0.24
+      ]
     },
     {
       "id": "room_05",
       "category": "living",
-      "photo_id": 7836572,
-      "title_en": "Scandinavian Green",
-      "title_tr": "İskandinav Yeşili",
-      "photographer": "Stanislav Kondratiev",
-      "photo_url": "https://www.pexels.com/photo/indoor-plants-inside-the-living-room-7836572/",
-      "free": false
+      "photo_id": 4846459,
+      "title_en": "Soft Gray Living Wall",
+      "title_tr": "Yumuşak Gri Salon Duvarı",
+      "photographer": "Rachel Claire",
+      "photo_url": "https://www.pexels.com/photo/interior-of-sofa-with-pillows-in-room-4846459/",
+      "free": false,
+      "anchor": [
+        0.44,
+        0.34,
+        0.28
+      ]
     },
     {
       "id": "room_06",
       "category": "living",
-      "photo_id": 6044718,
-      "title_en": "Brick Wall Lounge",
-      "title_tr": "Tuğla Duvarlı Salon",
-      "photographer": "Skylar Kang",
-      "photo_url": "https://www.pexels.com/photo/living-room-interior-at-home-in-sunlight-6044718/",
-      "free": false
+      "photo_id": 12277130,
+      "title_en": "Minimal Chair & Wall",
+      "title_tr": "Minimal Koltuk ve Boş Duvar",
+      "photographer": "dada _design",
+      "photo_url": "https://www.pexels.com/photo/brown-wooden-side-table-beside-an-armchair-12277130/",
+      "free": false,
+      "anchor": [
+        0.58,
+        0.33,
+        0.26
+      ]
     },
     {
       "id": "room_07",
@@ -70,17 +100,27 @@
       "title_tr": "Doğal Işıklı Yatak Odası",
       "photographer": "Peter Vang",
       "photo_url": "https://www.pexels.com/photo/cozy-minimalist-bedroom-with-natural-light-36816994/",
-      "free": true
+      "free": true,
+      "anchor": [
+        0.3,
+        0.4,
+        0.28
+      ]
     },
     {
       "id": "room_08",
       "category": "bedroom",
-      "photo_id": 14101565,
-      "title_en": "Soft Linen Bedroom",
-      "title_tr": "Yumuşak Keten Oda",
-      "photographer": "Natalia Walusiak",
-      "photo_url": "https://www.pexels.com/photo/interior-of-cozy-bedroom-14101565/",
-      "free": false
+      "photo_id": 8251591,
+      "title_en": "Scandinavian Bedroom Wall",
+      "title_tr": "İskandinav Yatak Odası Duvarı",
+      "photographer": "PNW Production",
+      "photo_url": "https://www.pexels.com/photo/white-bed-inside-the-bedroom-8251591/",
+      "free": false,
+      "anchor": [
+        0.53,
+        0.34,
+        0.31
+      ]
     },
     {
       "id": "room_09",
@@ -90,27 +130,42 @@
       "title_tr": "Beyaz Tuğla Yatak Odası",
       "photographer": "♡ julieee",
       "photo_url": "https://www.pexels.com/photo/cozy-minimalist-bedroom-with-white-brick-wall-32058085/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.63,
+        0.28,
+        0.22
+      ]
     },
     {
       "id": "room_10",
       "category": "bedroom",
-      "photo_id": 35229094,
-      "title_en": "Warm Neutral Bedroom",
-      "title_tr": "Sıcak Nötr Yatak Odası",
-      "photographer": "Pușcaș Adryan",
-      "photo_url": "https://www.pexels.com/photo/modern-minimalist-bedroom-with-natural-light-35229094/",
-      "free": false
+      "photo_id": 36976767,
+      "title_en": "Cozy Lamp Bedroom Wall",
+      "title_tr": "Sıcak Lambalı Yatak Odası",
+      "photographer": "Brunxs Monochrome",
+      "photo_url": "https://www.pexels.com/photo/elegant-bedside-lamp-on-wooden-table-36976767/",
+      "free": false,
+      "anchor": [
+        0.66,
+        0.36,
+        0.24
+      ]
     },
     {
       "id": "room_11",
       "category": "dining",
-      "photo_id": 11125419,
-      "title_en": "Bright Dining Nook",
-      "title_tr": "Aydınlık Yemek Köşesi",
-      "photographer": "Curtis Adams",
-      "photo_url": "https://www.pexels.com/photo/modern-dining-room-11125419/",
-      "free": true
+      "photo_id": 19966784,
+      "title_en": "Open Plan Dining Wall",
+      "title_tr": "Açık Plan Yemek Duvarı",
+      "photographer": "Alex Tyson",
+      "photo_url": "https://www.pexels.com/photo/spacious-interior-with-a-wooden-floor-and-a-coffee-table-19966784/",
+      "free": true,
+      "anchor": [
+        0.47,
+        0.32,
+        0.2
+      ]
     },
     {
       "id": "room_12",
@@ -120,7 +175,12 @@
       "title_tr": "Beyaz Sandalyeli Yemek Odası",
       "photographer": "Sofía Nuñez",
       "photo_url": "https://www.pexels.com/photo/interior-of-a-modern-dining-room-17860417/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.4,
+        0.38,
+        0.26
+      ]
     },
     {
       "id": "room_13",
@@ -130,7 +190,12 @@
       "title_tr": "Doğal Ahşap Yemek Odası",
       "photographer": "Lisa Anna",
       "photo_url": "https://www.pexels.com/photo/wooden-table-and-chairs-in-a-modern-dining-room-19846386/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.78,
+        0.35,
+        0.2
+      ]
     },
     {
       "id": "room_14",
@@ -140,37 +205,57 @@
       "title_tr": "Pencere Yanı Yemek Masası",
       "photographer": "Max Vakhtbovych",
       "photo_url": "https://www.pexels.com/photo/table-in-dining-room-in-apartment-7195894/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.79,
+        0.38,
+        0.18
+      ]
     },
     {
       "id": "room_15",
       "category": "hallway",
-      "photo_id": 7533920,
-      "title_en": "Calm White Hallway",
-      "title_tr": "Sakin Beyaz Koridor",
-      "photographer": "Max Vakhtbovych",
-      "photo_url": "https://www.pexels.com/photo/empty-white-corridor-in-apartment-7533920/",
-      "free": true
+      "photo_id": 34446589,
+      "title_en": "Open Entryway Wall",
+      "title_tr": "Açık Antre Duvarı",
+      "photographer": "Alexander F Ungerer",
+      "photo_url": "https://www.pexels.com/photo/empty-minimalist-room-with-wooden-flooring-34446589/",
+      "free": true,
+      "anchor": [
+        0.38,
+        0.42,
+        0.31
+      ]
     },
     {
       "id": "room_16",
       "category": "hallway",
-      "photo_id": 22619753,
-      "title_en": "Windowlight Passage",
-      "title_tr": "Pencere Işıklı Geçit",
-      "photographer": "Yusuf Eser",
-      "photo_url": "https://www.pexels.com/photo/interior-of-an-empty-hallway-22619753/",
-      "free": false
+      "photo_id": 7031615,
+      "title_en": "Bright Gallery Passage",
+      "title_tr": "Aydınlık Galeri Geçidi",
+      "photographer": "Max Vakhtbovych",
+      "photo_url": "https://www.pexels.com/photo/empty-corridor-of-modern-apartment-with-glass-doors-7031615/",
+      "free": false,
+      "anchor": [
+        0.22,
+        0.43,
+        0.21
+      ]
     },
     {
       "id": "room_17",
       "category": "hallway",
-      "photo_id": 8128155,
-      "title_en": "Sunny Minimal Corridor",
-      "title_tr": "Güneşli Sade Koridor",
-      "photographer": "Alfin Auzikri",
-      "photo_url": "https://www.pexels.com/photo/an-empty-corridor-8128155/",
-      "free": false
+      "photo_id": 10554838,
+      "title_en": "Calm Neutral Entry Niche",
+      "title_tr": "Sakin Nötr Antre Köşesi",
+      "photographer": "Ron Lach",
+      "photo_url": "https://www.pexels.com/photo/bags-on-the-floor-and-branch-10554838/",
+      "free": false,
+      "anchor": [
+        0.54,
+        0.31,
+        0.27
+      ]
     },
     {
       "id": "room_18",
@@ -180,17 +265,27 @@
       "title_tr": "Minimal Ev Çalışma Alanı",
       "photographer": "Darina Belonogova",
       "photo_url": "https://www.pexels.com/photo/minimalist-design-of-a-home-office-8004011/",
-      "free": true
+      "free": true,
+      "anchor": [
+        0.26,
+        0.4,
+        0.26
+      ]
     },
     {
       "id": "room_19",
       "category": "office",
-      "photo_id": 6000854,
-      "title_en": "Contemporary Desk",
-      "title_tr": "Çağdaş Çalışma Masası",
-      "photographer": "Carlos Montelara",
-      "photo_url": "https://www.pexels.com/photo/minimal-interior-design-of-a-home-office-workplace-6000854/",
-      "free": false
+      "photo_id": 5726022,
+      "title_en": "Light Workspace Wall",
+      "title_tr": "Aydınlık Çalışma Duvarı",
+      "photographer": "kaboompics.com",
+      "photo_url": "https://www.pexels.com/photo/lamp-on-a-table-beside-a-potted-green-plant-5726022/",
+      "free": false,
+      "anchor": [
+        0.43,
+        0.34,
+        0.28
+      ]
     },
     {
       "id": "room_20",
@@ -200,7 +295,12 @@
       "title_tr": "Loş Çalışma Köşesi",
       "photographer": "Soulkid Photography",
       "photo_url": "https://www.pexels.com/photo/desk-with-computer-in-the-office-18495291/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.31,
+        0.3,
+        0.29
+      ]
     },
     {
       "id": "room_21",
@@ -210,7 +310,12 @@
       "title_tr": "Geniş Boş Oda",
       "photographer": "Curtis Adams",
       "photo_url": "https://www.pexels.com/photo/room-with-beige-wall-and-big-glass-windows-with-wooden-flooring-6835181/",
-      "free": true
+      "free": true,
+      "anchor": [
+        0.67,
+        0.41,
+        0.26
+      ]
     },
     {
       "id": "room_22",
@@ -220,7 +325,12 @@
       "title_tr": "Güneşli Ahşap Şifonyer",
       "photographer": "Curtis Adams",
       "photo_url": "https://www.pexels.com/photo/photo-of-an-empty-room-3935349/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.58,
+        0.42,
+        0.29
+      ]
     },
     {
       "id": "room_23",
@@ -230,7 +340,12 @@
       "title_tr": "Altın Tonlu Zemin Gölgeleri",
       "photographer": "sanket mahind",
       "photo_url": "https://www.pexels.com/photo/shadow-of-a-window-frame-on-the-wood-flooring-of-an-empty-room-18707513/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.53,
+        0.38,
+        0.26
+      ]
     },
     {
       "id": "room_24",
@@ -240,7 +355,13 @@
       "title_tr": "Mimari Kemerler",
       "photographer": "Daniel Tanque",
       "photo_url": "https://www.pexels.com/photo/a-big-empty-room-with-wooden-flooring-13702811/",
-      "free": false
+      "free": false,
+      "anchor": [
+        0.28,
+        0.42,
+        0.29
+      ]
     }
-  ]
+  ],
+  "asset_revision": 2
 }
