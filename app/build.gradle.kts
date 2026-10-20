@@ -11,8 +11,8 @@ android {
         applicationId = "com.vintagesoulprint.wallmuse"
         minSdk = 29
         targetSdk = 36
-        versionCode = 15
-        versionName = "2.9.0"
+        versionCode = 16
+        versionName = "2.9.1"
     }
     // Shared, PUBLIC development-only debug certificate. Never use for Play releases.
     // The preview package has its own identity so existing test installations remain untouched.
