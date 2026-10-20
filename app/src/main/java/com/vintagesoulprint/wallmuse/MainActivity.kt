@@ -510,30 +510,104 @@ class MainActivity : Activity() {
         syncControls()
     }
 
+    /**
+     * Guided perspective: select one of eight viewpoints, adjust strength, Apply.
+     * The preview uses the actual CROPPED image + frame, not the original photo.
+     * Four-corner fine tuning is an optional advanced control.
+     */
     private fun showPerspectiveSettings(){
         val layer=canvas.selected?:run{toast(R.string.no_selection);return}
-        val editor=PerspectiveEditorView(this,layer.bitmap,
-            canvas.selectedPerspective()?:PerspectiveGeometry.IDENTITY).apply{
-            layoutParams=LinearLayout.LayoutParams(-1,dp(345))
-        }
+        val previewArt=canvas.framedCropForPerspective()?:layer.bitmap
+        val editor=PerspectiveEditorView(this,previewArt,
+            canvas.selectedPerspective()?:PerspectiveGeometry.IDENTITY)
+        var selectedX=0
+        var selectedY=0
+        var strength=38
+        val scroll=ScrollView(this).apply {isFillViewport=false}
         val wrapper=LinearLayout(this).apply{
             orientation=LinearLayout.VERTICAL
-            setPadding(dp(12),dp(10),dp(12),0)
-            addView(label(getString(R.string.perspective_hint),12f,BG).apply{
-                setPadding(dp(5),0,dp(5),dp(8))
-            })
-            addView(editor)
+            setPadding(dp(14),dp(8),dp(14),dp(8))
         }
+        scroll.addView(wrapper)
+
+        wrapper.addView(label(getString(R.string.perspective_easy_hint),13f,BG,true).apply{
+            setPadding(dp(6),0,dp(5),dp(8))
+        })
+        wrapper.addView(editor,LinearLayout.LayoutParams(-1,dp(264)))
+        wrapper.addView(label(getString(R.string.perspective_direction),13f,BG,true).apply{
+            setPadding(dp(5),dp(10),dp(5),dp(5))
+        })
+        val directionLabel=label(getString(R.string.perspective_straight),11f,BG).apply{
+            gravity=Gravity.CENTER
+            setPadding(0,dp(2),0,dp(6))
+        }
+        val directions=listOf(
+            Triple("↖",-1,-1),Triple("↑",0,-1),Triple("↗",1,-1),
+            Triple("←",-1,0),Triple("⊙",0,0),Triple("→",1,0),
+            Triple("↙",-1,1),Triple("↓",0,1),Triple("↘",1,1)
+        )
+        val grid=GridLayout(this).apply{
+            columnCount=3
+            alignmentMode=GridLayout.ALIGN_BOUNDS
+        }
+        directions.forEach{(symbol,dx,dy)->
+            val btn=button(symbol,"outlined"){
+                selectedX=dx;selectedY=dy
+                editor.setPreset(dx,dy,strength)
+                directionLabel.text=if(dx==0&&dy==0)getString(R.string.perspective_straight)
+                    else getString(R.string.perspective_direction_selected)+" "+symbol
+            }.apply {textSize=21f;contentDescription=getString(R.string.perspective_direction)+" "+symbol}
+            grid.addView(btn,GridLayout.LayoutParams().apply{
+                width=dp(76);height=dp(48)
+                setMargins(dp(4),dp(2),dp(4),dp(2))
+            })
+        }
+        wrapper.addView(grid,LinearLayout.LayoutParams(-2,-2).apply {gravity=Gravity.CENTER_HORIZONTAL})
+        wrapper.addView(directionLabel)
+        val strengthValue=label(getString(R.string.perspective_strength)+" 38%",12f,BG,true).apply{
+            setPadding(dp(5),dp(8),0,0)
+        }
+        wrapper.addView(strengthValue)
+        wrapper.addView(SeekBar(this).apply{
+            max=100
+            progress=strength
+            setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{
+                override fun onStartTrackingTouch(s:SeekBar) = Unit
+                override fun onStopTrackingTouch(s:SeekBar) = Unit
+                override fun onProgressChanged(s:SeekBar,p:Int,fromUser:Boolean){
+                    if(fromUser){
+                        strength=p
+                        strengthValue.text=getString(R.string.perspective_strength)+" "+p+"%"
+                        if(selectedX!=0||selectedY!=0)editor.setPreset(selectedX,selectedY,strength)
+                    }
+                }
+            })
+        },LinearLayout.LayoutParams(-1,dp(48)))
+        wrapper.addView(CheckBox(this).apply{
+            text=getString(R.string.perspective_fine_adjust)
+            setTextColor(BG)
+            textSize=13f
+            minHeight=dp(48)
+            setOnCheckedChangeListener{_,checked->editor.fineAdjust=checked}
+        })
+        wrapper.addView(label(getString(R.string.perspective_fine_hint),11f,BG).apply{
+            setPadding(dp(6),0,dp(5),dp(8))
+        })
+
         val dialog=AlertDialog.Builder(this).setTitle(R.string.perspective)
-            .setView(wrapper)
+            .setView(scroll)
             .setPositiveButton(R.string.apply){_,_->
                 checkpoint()
                 canvas.setPerspective(editor.result())
                 syncControls()
             }.setNegativeButton(R.string.cancel,null)
-            .setNeutralButton(R.string.crop_reset,null).create()
+            .setNeutralButton(R.string.perspective_reset,null).create()
         dialog.setOnShowListener{
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener{editor.reset()}
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener{
+                selectedX=0;selectedY=0
+                editor.reset()
+                directionLabel.text=getString(R.string.perspective_straight)
+            }
         }
         dialog.show()
     }
