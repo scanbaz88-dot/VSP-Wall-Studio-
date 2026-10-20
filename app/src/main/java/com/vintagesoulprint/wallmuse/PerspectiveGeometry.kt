@@ -25,10 +25,12 @@ object PerspectiveGeometry {
             if(i==0)direction=cross else if(cross*direction<=0f)return false
             if(ux*ux+uy*uy<.025f)return false
         }
-        val area=abs((0..3).sumOf { i->
+        var twiceArea=0f
+        for(i in 0..3){
             val j=(i+1)%4
-            points[2*i]*points[2*j+1]-points[2*j]*points[2*i+1]
-        })/2f
+            twiceArea+=points[2*i]*points[2*j+1]-points[2*j]*points[2*i+1]
+        }
+        val area=abs(twiceArea)/2f
         return area>.08f
     }
     fun rotate(angle:Float):Float=((angle%360f)+360f)%360f
