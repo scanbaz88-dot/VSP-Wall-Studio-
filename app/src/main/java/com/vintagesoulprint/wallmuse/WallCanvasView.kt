@@ -132,6 +132,16 @@ class WallCanvasView(context: Context) : View(context) {
         selected?.let{it.cx=.5f;it.cy=.48f}
         invalidate()
     }
+    /** Initial suggestion only — every coordinate remains freely movable. */
+    fun suggestSelectedPlacement(x:Float,y:Float,width:Float){
+        selected?.let{
+            it.cx=x.coerceIn(.08f,.92f)
+            it.cy=y.coerceIn(.08f,.92f)
+            it.widthFraction=width.coerceIn(.10f,.55f)
+        }
+        onSelectionChanged?.invoke()
+        invalidate()
+    }
     /** Gallery arrangements preserve artwork aspect and crop, with optional gap in cm. */
     fun applyGalleryLayout(layout:GalleryPlanner.Layout,gapCm:Float=8f,wallWidthCm:Float=320f):Boolean {
         if(artworks.isEmpty())return false
