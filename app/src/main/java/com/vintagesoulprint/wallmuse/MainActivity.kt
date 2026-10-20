@@ -78,6 +78,11 @@ class MainActivity : Activity() {
     private var perspectiveCandidate: FloatArray? = null
     private var perspectiveLaunchedFromEditor=false
     private var perspectiveComparing=false
+    private var galleryDesignerPanel: GalleryDesignerPanel?=null
+    private var galleryDesignerBaseline:WallCanvasView.State?=null
+    private var galleryOpenedFromEditor=false
+    private var groupStudioPanel:GroupStudioPanel?=null
+    private var groupOpenedFromEditor=false
     private lateinit var canvasHolder: FrameLayout
     private lateinit var cameraButton: Button
     private var liveCamera: LiveCamera? = null
@@ -154,7 +159,8 @@ class MainActivity : Activity() {
         // Store the tiny edit manifest, not the photo pixels, inside private app storage.
         if (::canvas.isInitialized) {
             try {
-                ProjectStore.write(this, wallUri?.toString(), perspectiveBaseline?:canvas.state(), canvas.showArtwork)
+                ProjectStore.write(this,wallUri?.toString(),
+                    perspectiveBaseline?:galleryDesignerBaseline?:canvas.state(),canvas.showArtwork)
             } catch (_: Exception) { /* An autosave error must never crash or block the editor. */ }
         }
         super.onStop()
@@ -163,7 +169,8 @@ class MainActivity : Activity() {
     override fun onRetainNonConfigurationInstance(): Any? {
         if (!::canvas.isInitialized) return null
         val room = canvas.wallPhoto ?: return null
-        return MemorySession(room, wallUri, canvas.state(), undo.toList(), redo.toList(), canvas.showArtwork)
+        return MemorySession(room,wallUri,galleryDesignerBaseline?:canvas.state(),
+            undo.toList(),redo.toList(),canvas.showArtwork)
     }
 
     private fun restoreMemorySession(session: MemorySession) {
@@ -508,6 +515,8 @@ class MainActivity : Activity() {
 
     private fun setFocusMode(active: Boolean) {
         if(!active&&livePerspectivePanel!=null)finishLivePerspective(false,false)
+        if(!active&&galleryDesignerPanel!=null)finishGalleryDesign(false,false)
+        if(!active&&groupStudioPanel!=null)finishGroupStudio(false)
         if(active)savedEditorScroll=editorScroll.scrollY
         editing = !active
         canvasHolder.layoutParams=canvasHolder.layoutParams.apply{
@@ -520,7 +529,8 @@ class MainActivity : Activity() {
         actionsRow.visibility=visibility
         headlineLabel.visibility=visibility
         fullscreenExitButton.visibility=if(active)View.VISIBLE else View.GONE
-        focusToolbar.visibility=if(active&&livePerspectivePanel==null)View.VISIBLE else View.GONE
+        focusToolbar.visibility=if(active&&livePerspectivePanel==null&&
+            galleryDesignerPanel==null&&groupStudioPanel==null)View.VISIBLE else View.GONE
         focusHeaderLabel.visibility=if(active)View.VISIBLE else View.GONE
         toolsShortcut.visibility=if(active)View.GONE else View.VISIBLE
         focusButton.text=getString(if(active)R.string.edit else R.string.focus)
@@ -756,6 +766,8 @@ class MainActivity : Activity() {
     @Deprecated("Use system back callback when upgrading Android runtime dependencies")
     override fun onBackPressed() {
         if(livePerspectivePanel!=null)finishLivePerspective(false)
+        else if(galleryDesignerPanel!=null)finishGalleryDesign(false)
+        else if(groupStudioPanel!=null)finishGroupStudio(true)
         else if (!editing) setFocusMode(false) else super.onBackPressed()
     }
 
@@ -972,120 +984,112 @@ class MainActivity : Activity() {
      * Editable selection persists only during this editing session. The artwork
      * geometry itself stays in the autosave and undo/redo snapshots.
      */
+    /** Direct-on-wall group editing: tap check badges, no nested dialog chains. */
     private fun showGroupStudio(){
-        val selected=canvas.groupSelection()
-        if(selected.size<2){showGroupPicker();return}
-        val names=arrayOf(
-            getString(R.string.group_change),
-            getString(R.string.group_align_left),
-            getString(R.string.group_align_right),
-            getString(R.string.group_align_center_x),
-            getString(R.string.group_align_top),
-            getString(R.string.group_align_bottom),
-            getString(R.string.group_align_center_y),
-            getString(R.string.group_space_x),
-            getString(R.string.group_space_y),
-            getString(R.string.group_grow),
-            getString(R.string.group_shrink),
-            getString(R.string.group_end)
-        )
-        val alignModes=GalleryGeometry.Align.values()
-        AlertDialog.Builder(this)
-            .setTitle(R.string.group_apply)
-            .setMessage(getString(R.string.group_selected,selected.size))
-            .setPositiveButton(getString(R.string.apply)){_,_->
-                AlertDialog.Builder(this)
-                    .setTitle(R.string.group_studio)
-                    .setItems(names){_,idx->
-                        when(idx){
-                            0->showGroupPicker()
-                            in 1..8->{
-                                checkpoint()
-                                canvas.editGroupAlign(alignModes[idx-1])
-                                syncControls()
-                            }
-                            9,10->{
-                                checkpoint()
-                                canvas.editGroupScale(if(idx==9)1.10f else .90f)
-                                syncControls()
-                            }
-                            11->{
-                                canvas.clearGroup()
-                                syncControls()
-                            }
-                        }
-                    }.setNegativeButton(R.string.cancel,null).show()
-            }.setNegativeButton(R.string.cancel,null).show()
-    }
-
-    private fun showGroupPicker(){
-        val artwork=canvas.availableArtworks()
-        if(artwork.size<2){toast(R.string.gallery_none);return}
-        val previous=canvas.groupSelection()
-        val checked=BooleanArray(artwork.size){artwork[it].first in previous}
-        AlertDialog.Builder(this)
-            .setTitle(R.string.group_choose)
-            .setMultiChoiceItems(artwork.map{it.second}.toTypedArray(),checked){_,which,value->
-                checked[which]=value
-            }
-            .setNegativeButton(R.string.cancel,null)
-            .setPositiveButton(R.string.apply){_,_->
-                val ids=artwork.filterIndexed{idx,_->checked[idx]}.map{it.first}.toSet()
-                if(ids.size<2){
-                    Toast.makeText(this,getString(R.string.group_choose_hint),Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+        if(canvas.artCount<2){toast(R.string.group_choose_hint);return}
+        if(livePerspectivePanel!=null)return
+        if(galleryDesignerPanel!=null)finishGalleryDesign(false,false)
+        if(groupStudioPanel!=null)return
+        groupOpenedFromEditor=editing
+        if(editing)setFocusMode(true)
+        canvas.selectAllGroup()
+        canvas.groupPicking=true
+        focusToolbar.visibility=View.GONE
+        val panel=GroupStudioPanel(this,
+            onSelectAll={
+                canvas.selectAllGroup()
+            },
+            onPicking={picking->
+                canvas.groupPicking=picking
+                canvas.invalidate()
+            },
+            onAction={mode,factor->
+                if(canvas.groupCount<2){
+                    Toast.makeText(this,getString(R.string.group_choose_hint),
+                        Toast.LENGTH_SHORT).show()
+                }else{
+                    checkpoint()
+                    if(mode!=null)canvas.editGroupAlign(mode)
+                    else if(factor!=null)canvas.editGroupScale(factor)
+                    syncControls()
                 }
-                canvas.selectGroup(ids)
-                syncControls()
-                Toast.makeText(this,getString(R.string.group_selected,ids.size),Toast.LENGTH_LONG).show()
-            }.show()
+            },
+            onClose={finishGroupStudio(true)}
+        )
+        groupStudioPanel=panel
+        canvas.onGroupSelectionChanged={num->panel.updateCount(num)}
+        panel.updateCount(canvas.groupCount)
+        canvasHolder.addView(panel,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
+            setMargins(dp(10),0,dp(10),dp(15))
+        })
+    }
+    private fun finishGroupStudio(returnToEditor:Boolean){
+        val panel=groupStudioPanel?:return
+        canvasHolder.removeView(panel)
+        groupStudioPanel=null
+        canvas.onGroupSelectionChanged=null
+        canvas.clearGroup()
+        focusToolbar.visibility=if(!editing)View.VISIBLE else View.GONE
+        syncControls()
+        val back=groupOpenedFromEditor
+        groupOpenedFromEditor=false
+        if(returnToEditor&&back)setFocusMode(false)
     }
 
+    /** The preview is transactional: cancel restores every picture exactly. */
     private fun showGalleryLayouts(){
         if(canvas.artCount==0){toast(R.string.gallery_none);return}
-        val layouts=GalleryPlanner.Layout.values()
-        val choices=arrayOf(
-            getString(R.string.layout_grid),
-            getString(R.string.layout_row),
-            getString(R.string.layout_column),
-            getString(R.string.layout_salon),
-            getString(R.string.layout_pyramid)
-        )
-        AlertDialog.Builder(this).setTitle(R.string.gallery_layout)
-            .setItems(choices){_,index->
-                val original=getPreferences(MODE_PRIVATE).getInt("gallery_gap_cm",8)
-                val panel=LinearLayout(this).apply{
-                    orientation=LinearLayout.VERTICAL
-                    setPadding(dp(18),dp(8),dp(18),dp(8))
+        if(livePerspectivePanel!=null)return
+        if(groupStudioPanel!=null)finishGroupStudio(false)
+        if(galleryDesignerPanel!=null)return
+        galleryDesignerBaseline=canvas.state()
+        galleryOpenedFromEditor=editing
+        if(editing)setFocusMode(true)
+        focusToolbar.visibility=View.GONE
+        val ratios=canvas.state().elements.map{
+            if(FrameEngine.isRound(it.frame))1f
+            else it.printH/it.printW.coerceAtLeast(1f)
+        }
+        val gap=getPreferences(MODE_PRIVATE).getInt("gallery_gap_cm",8)
+        var lastGap=gap
+        val panel=GalleryDesignerPanel(this,ratios,gap,
+            onPreview={layout,selectedGap->
+                if(galleryDesignerPanel!=null){
+                    lastGap=selectedGap
+                    canvas.applyGalleryLayout(layout,selectedGap.toFloat(),wallWidthCm)
+                    syncControls()
                 }
-                val hint=label(getString(R.string.gallery_ratio_note),13f,BG)
-                hint.setPadding(dp(4),dp(8),dp(4),dp(12))
-                panel.addView(hint)
-                val sizeLabel=label(getString(R.string.gallery_gap)+": ${original} cm",14f,BG,true)
-                panel.addView(sizeLabel)
-                var gap=original
-                panel.addView(SeekBar(this).apply{
-                    max=29
-                    progress=(original-1).coerceIn(0,29)
-                    setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{
-                        override fun onStartTrackingTouch(s:SeekBar)=Unit
-                        override fun onStopTrackingTouch(s:SeekBar)=Unit
-                        override fun onProgressChanged(s:SeekBar,progress:Int,fromUser:Boolean){
-                            if(fromUser){gap=progress+1
-                                sizeLabel.text=getString(R.string.gallery_gap)+": ${gap} cm"
-                            }
-                        }
-                    })
-                })
-                AlertDialog.Builder(this).setTitle(choices[index]).setView(panel)
-                    .setNegativeButton(R.string.cancel,null)
-                    .setPositiveButton(R.string.apply){_,_->
-                        checkpoint()
-                        canvas.applyGalleryLayout(layouts[index],gap.toFloat(),wallWidthCm)
-                        getPreferences(MODE_PRIVATE).edit().putInt("gallery_gap_cm",gap).apply()
-                        syncControls()
-                    }.show()
-            }.setNegativeButton(R.string.cancel,null).show()
+            },
+            onCancel={finishGalleryDesign(false)},
+            onApply={
+                getPreferences(MODE_PRIVATE).edit().putInt("gallery_gap_cm",lastGap).apply()
+                finishGalleryDesign(true)
+            }
+        )
+        galleryDesignerPanel=panel
+        canvasHolder.addView(panel,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply{
+            setMargins(dp(10),0,dp(10),dp(15))
+        })
+    }
+
+    private fun finishGalleryDesign(apply:Boolean,returnToEditor:Boolean=true){
+        val panel=galleryDesignerPanel?:return
+        val baseline=galleryDesignerBaseline
+        val current=canvas.state()
+        if(!apply&&baseline!=null)canvas.restore(baseline)
+        else if(apply&&baseline!=null&&baseline!=current){
+            undo.push(baseline)
+            if(undo.size>30)undo.removeLast()
+            redo.clear()
+        }
+        canvasHolder.removeView(panel)
+        galleryDesignerPanel=null
+        galleryDesignerBaseline=null
+        focusToolbar.visibility=if(!editing)View.VISIBLE else View.GONE
+        syncControls()
+        val back=galleryOpenedFromEditor
+        galleryOpenedFromEditor=false
+        if(returnToEditor&&back)setFocusMode(false)
     }
 
     private fun showSmartTools(){
