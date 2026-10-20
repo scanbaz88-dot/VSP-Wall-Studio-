@@ -13,13 +13,15 @@ import java.io.File
  */
 object ProjectStore {
     private const val FILE_NAME = "last_wallmuse_draft.json"
-    private const val FORMAT_VERSION = 3
+    private const val FORMAT_VERSION = 4
 
     data class StoredLayer(
         val id: Long, val sourceUri: String, val cx: Float, val cy: Float,
         val widthFraction: Float, val angle: Float, val frame: Int,
         val printW: Float, val printH: Float, val trim: Float,
-        val cropLeft: Float, val cropTop: Float, val cropRight: Float, val cropBottom: Float
+        val cropLeft: Float, val cropTop: Float, val cropRight: Float, val cropBottom: Float,
+        val tlx:Float, val tly:Float, val trx:Float, val tryY:Float,
+        val brx:Float, val bry:Float, val blx:Float, val bly:Float
     )
     data class Draft(
         val wallUri: String?, val layers: List<StoredLayer>,
@@ -53,6 +55,12 @@ object ProjectStore {
             json.put("cropTop", layer.cropTop.toDouble())
             json.put("cropRight", layer.cropRight.toDouble())
             json.put("cropBottom", layer.cropBottom.toDouble())
+            json.put("perspective",JSONArray().apply{
+                put(layer.tlx.toDouble());put(layer.tly.toDouble())
+                put(layer.trx.toDouble());put(layer.tryY.toDouble())
+                put(layer.brx.toDouble());put(layer.bry.toDouble())
+                put(layer.blx.toDouble());put(layer.bly.toDouble())
+            })
             layers.put(json)
         }
         root.put("layers", layers)
@@ -79,12 +87,17 @@ object ProjectStore {
             val item = array.optJSONObject(index) ?: continue
             val uri = item.optString("uri")
             if (uri.isBlank()) continue
+            val perspective=item.optJSONArray("perspective")
+            val coords=if(perspective!=null && perspective.length()==8)
+                FloatArray(8){j->perspective.optDouble(j,PerspectiveGeometry.IDENTITY[j].toDouble()).toFloat()}
+                else PerspectiveGeometry.IDENTITY.copyOf()
+            val corners=if(PerspectiveGeometry.valid(coords))coords else PerspectiveGeometry.IDENTITY
             layers.add(StoredLayer(
                 id = item.optLong("id", index.toLong() + 1), sourceUri = uri,
                 cx = item.optDouble("cx", .5).toFloat().coerceIn(0f, 1f),
                 cy = item.optDouble("cy", .5).toFloat().coerceIn(0f, 1f),
                 widthFraction = item.optDouble("width", .3).toFloat().coerceIn(.10f, .85f),
-                angle = item.optDouble("angle", 0.0).toFloat().coerceIn(-45f, 45f),
+                angle = PerspectiveGeometry.rotate(item.optDouble("angle", 0.0).toFloat()),
                 frame = item.optInt("frame", 1).coerceIn(0, FrameCatalog.frames.lastIndex),
                 printW = item.optDouble("printW",60.0).toFloat().coerceIn(5f,300f),
                 printH = item.optDouble("printH",0.0).toFloat().coerceIn(0f,300f),
@@ -92,7 +105,9 @@ object ProjectStore {
                 cropLeft = item.optDouble("cropLeft",0.0).toFloat().coerceIn(0f,.98f),
                 cropTop = item.optDouble("cropTop",0.0).toFloat().coerceIn(0f,.98f),
                 cropRight = item.optDouble("cropRight",1.0).toFloat().coerceIn(.01f,1f),
-                cropBottom = item.optDouble("cropBottom",1.0).toFloat().coerceIn(.01f,1f)
+                cropBottom = item.optDouble("cropBottom",1.0).toFloat().coerceIn(.01f,1f),
+                tlx=corners[0],tly=corners[1],trx=corners[2],tryY=corners[3],
+                brx=corners[4],bry=corners[5],blx=corners[6],bly=corners[7]
             ))
         }
         val selected = if (json.isNull("selected")) null else json.optLong("selected")
