@@ -110,10 +110,13 @@ class WallCanvasView(context: Context) : View(context) {
         selected?.let{it.cx=.5f;it.cy=.48f}
         invalidate()
     }
-    /** Apply an arrangement to every added artwork without changing its frame or crop. */
-    fun applyGalleryLayout(layout:GalleryPlanner.Layout):Boolean {
+    /** Gallery arrangements preserve artwork aspect and crop, with optional gap in cm. */
+    fun applyGalleryLayout(layout:GalleryPlanner.Layout,gapCm:Float=8f,wallWidthCm:Float=320f):Boolean {
         if(artworks.isEmpty())return false
-        val placements=GalleryPlanner.arrange(artworks.size,layout)
+        val ratios=artworks.map{if(FrameEngine.isRound(it.frame))1f
+            else it.printH/it.printW.coerceAtLeast(1f)}
+        val gap=(gapCm/wallWidthCm.coerceAtLeast(50f)).coerceIn(.006f,.07f)
+        val placements=GalleryGeometry.layout(ratios,layout,gap)
         artworks.forEachIndexed { i,layer->
             val plan=placements[i]
             layer.cx=plan.cx;layer.cy=plan.cy
@@ -124,6 +127,89 @@ class WallCanvasView(context: Context) : View(context) {
         invalidate()
         return true
     }
+
+    /** Group editing is transient; artwork and project serialization remain unchanged. */
+    private val groupedIds=linkedSetOf<Long>()
+    val groupCount get()=groupedIds.size
+    fun availableArtworks():List<Pair<Long,String>> = artworks.mapIndexed{index,l->
+        l.id to "${index+1}. ${l.printW.toInt()} × ${l.printH.toInt()} cm · ${FrameCatalog.displayName(l.frame)}"
+    }
+    fun groupSelection():Set<Long> = groupedIds.toSet()
+    fun selectGroup(ids:Set<Long>){
+        groupedIds.clear()
+        groupedIds.addAll(ids.intersect(artworks.map{it.id}.toSet()))
+        selectedId=groupedIds.firstOrNull()?:selectedId
+        onSelectionChanged?.invoke()
+        invalidate()
+    }
+    fun clearGroup(){groupedIds.clear();invalidate()}
+    private fun groupItems():List<GalleryGeometry.Item> = artworks
+        .filter{it.id in groupedIds}.map{
+            GalleryGeometry.Item(it.id,it.cx,it.cy,it.widthFraction,
+                if(FrameEngine.isRound(it.frame))1f else it.printH/it.printW.coerceAtLeast(1f))
+        }
+    fun editGroupAlign(mode:GalleryGeometry.Align):Boolean{
+        if(groupedIds.size<2)return false
+        val result=GalleryGeometry.align(groupItems(),mode).associateBy{it.id}
+        artworks.filter{it.id in groupedIds}.forEach{layer->
+            val changed=result[layer.id]?:return@forEach
+            layer.cx=changed.cx;layer.cy=changed.cy
+        }
+        invalidate();return true
+    }
+    fun editGroupScale(factor:Float):Boolean {
+        if(groupedIds.size<2)return false
+        val result=GalleryGeometry.scale(groupItems(),factor).associateBy{it.id}
+        artworks.filter{it.id in groupedIds}.forEach{layer->
+            val changed=result[layer.id]?:return@forEach
+            layer.cx=changed.cx;layer.cy=changed.cy;layer.widthFraction=changed.width
+        }
+        onSelectionChanged?.invoke();invalidate()
+        return true
+    }
+    private var groupOriginals:List<GalleryGeometry.Item> = emptyList()
+    private var groupStartX=0f
+    private var groupStartY=0f
+    private var groupStartDistance=1f
+    private var groupGestureRecorded=false
+    private var groupGestureActive=false
+    private fun beginGroupGesture(e:MotionEvent){
+        groupOriginals=groupItems()
+        groupStartX=e.x;groupStartY=e.y
+        groupGestureRecorded=false
+        groupGestureActive=true
+        parent?.requestDisallowInterceptTouchEvent(true)
+    }
+    private fun updateGroupPosition(dx:Float,dy:Float){
+        val fx=dx/photoRect.width().coerceAtLeast(1f)
+        val fy=dy/photoRect.height().coerceAtLeast(1f)
+        val minX=groupOriginals.minOfOrNull{(it.cx-it.width*.5f).toDouble()}?.toFloat()?:0f
+        val maxX=groupOriginals.maxOfOrNull{(it.cx+it.width*.5f).toDouble()}?.toFloat()?:1f
+        val minY=groupOriginals.minOfOrNull{(it.cy-it.height*.5f).toDouble()}?.toFloat()?:0f
+        val maxY=groupOriginals.maxOfOrNull{(it.cy+it.height*.5f).toDouble()}?.toFloat()?:1f
+        val x=fx.coerceIn(-minX,max(0f,1f-maxX))
+        val y=fy.coerceIn(-minY,max(0f,1f-maxY))
+        val positions=groupOriginals.associateBy{it.id}
+        artworks.filter{it.id in groupedIds}.forEach{layer->
+            val original=positions[layer.id]?:return@forEach
+            layer.cx=original.cx+x;layer.cy=original.cy+y
+        }
+        invalidate()
+    }
+    private fun updateGroupPinch(factor:Float,dx:Float,dy:Float){
+        val positions=GalleryGeometry.scale(groupOriginals,factor)
+        val byId=positions.associateBy{it.id}
+        val fx=dx/photoRect.width().coerceAtLeast(1f)
+        val fy=dy/photoRect.height().coerceAtLeast(1f)
+        artworks.filter{it.id in groupedIds}.forEach{layer->
+            val new=byId[layer.id]?:return@forEach
+            layer.cx=(new.cx+fx).coerceIn(.02f,.98f)
+            layer.cy=(new.cy+fy).coerceIn(.02f,.98f)
+            layer.widthFraction=new.width
+        }
+        invalidate()
+    }
+
     private fun magnetize(layer:ArtLayer){
         if(!smartSnap)return
         val other=artworks.filter{it.id!=layer.id}
@@ -229,6 +315,7 @@ class WallCanvasView(context: Context) : View(context) {
     fun setBeforeMode(before:Boolean){showArtwork=!before;invalidate()}
     fun state()=State(artworks.map{it.snapshot()},selectedId)
     fun restore(state:State){artworks.clear();artworks.addAll(state.elements.map{it.snapshot()});selectedId=state.selectedId
+        groupedIds.retainAll(artworks.map{it.id}.toSet())
         nextId=max(nextId,(artworks.maxOfOrNull{it.id}?:0L)+1);showArtwork=true;onSelectionChanged?.invoke();invalidate()}
     override fun onDraw(c:Canvas){super.onDraw(c);if(!livePreview)c.drawColor(Color.rgb(21,27,27))
         val room=wallPhoto?:return
@@ -236,7 +323,8 @@ class WallCanvasView(context: Context) : View(context) {
             // Transparent Canvas over the TextureView; match preview's view coordinates.
             photoRect.set(0f,0f,width.toFloat(),height.toFloat())
             if(showArtwork)artworks.forEach{drawArtwork(c,photoRect,it,
-                (showSelectionHandles||(focusMode&&focusHandlesVisible))&&it.id==selectedId,brush)}
+                (showSelectionHandles||(focusMode&&focusHandlesVisible))&&
+                (if(groupedIds.size>=2)it.id in groupedIds else it.id==selectedId),brush)}
         } else {
             val bound=RectF(10f*density,8f*density,width-10f*density,height-8f*density)
             photoRect.set(fit(room.width.toFloat(),room.height.toFloat(),bound))
@@ -261,7 +349,8 @@ class WallCanvasView(context: Context) : View(context) {
         val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         c.drawBitmap(wall,null,room,paint)
         if(!force&&!showArtwork)return
-        (snapshot?.elements?:artworks).forEach{drawArtwork(c,room,it,handles&&it.id==selectedId,paint)}
+        (snapshot?.elements?:artworks).forEach{drawArtwork(c,room,it,
+            handles&&(if(groupedIds.size>=2)it.id in groupedIds else it.id==selectedId),paint)}
     }
     private fun artworkDimensions(layer:ArtLayer,room:RectF):Pair<Float,Float>{
         val w=layer.widthFraction*room.width()
@@ -469,6 +558,58 @@ class WallCanvasView(context: Context) : View(context) {
             return true
         }
         if(!isEnabled||!showArtwork)return super.onTouchEvent(e)
+        // Group handles are live on camera and wall photo without switching canvas.
+        if(groupedIds.size>=2 && !perspectivePreview) {
+            when(e.actionMasked){
+                MotionEvent.ACTION_DOWN->{
+                    val picked=hitTest(e.x,e.y)
+                    groupGestureActive=picked!=null && picked.id in groupedIds
+                    if(groupGestureActive)beginGroupGesture(e)
+                    return true
+                }
+                MotionEvent.ACTION_POINTER_DOWN->{
+                    if(groupGestureActive&&e.pointerCount>=2){
+                        if(!groupGestureRecorded){onGestureStart?.invoke();groupGestureRecorded=true}
+                        groupOriginals=groupItems()
+                        groupStartDistance=distance(e).coerceAtLeast(1f)
+                        groupStartX=(e.getX(0)+e.getX(1))*.5f
+                        groupStartY=(e.getY(0)+e.getY(1))*.5f
+                        pinching=true
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_MOVE->{
+                    if(!groupGestureActive)return true
+                    if(pinching&&e.pointerCount>=2){
+                        val mx=(e.getX(0)+e.getX(1))*.5f
+                        val my=(e.getY(0)+e.getY(1))*.5f
+                        updateGroupPinch(distance(e)/groupStartDistance,
+                            mx-groupStartX,my-groupStartY)
+                    }else if(e.pointerCount==1&&!pinching){
+                        val dx=e.x-groupStartX;val dy=e.y-groupStartY
+                        if(!groupGestureRecorded&&hypot(dx,dy)>4*density){
+                            onGestureStart?.invoke();groupGestureRecorded=true
+                        }
+                        if(groupGestureRecorded)updateGroupPosition(dx,dy)
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_POINTER_UP->{
+                    pinching=false
+                    groupOriginals=groupItems()
+                    val other=if(e.actionIndex==0)1 else 0
+                    if(other<e.pointerCount){
+                        groupStartX=e.getX(other);groupStartY=e.getY(other)
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_UP,MotionEvent.ACTION_CANCEL->{
+                    pinching=false;groupGestureActive=false
+                    performClick();onSelectionChanged?.invoke();return true
+                }
+                else->return true
+            }
+        }
         if(perspectivePreview){
             when(e.actionMasked){
                 MotionEvent.ACTION_DOWN->{
