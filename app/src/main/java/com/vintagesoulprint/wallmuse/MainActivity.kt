@@ -32,6 +32,8 @@ import android.widget.ImageView
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
+import android.widget.RadioGroup
+import android.widget.RadioButton
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
@@ -1652,18 +1654,64 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * One understandable dialog for format, resolution and save/share.
+     * Never upscales the background photo; maxEdge is an upper pixel bound.
+     */
     private fun showExportFormatDialog(){
         if(canvas.artCount==0){toast(R.string.choose_art_first);return}
-        AlertDialog.Builder(this)
+        val panel=LinearLayout(this).apply{
+            orientation=LinearLayout.VERTICAL
+            setPadding(dp(20),dp(8),dp(20),dp(9))
+        }
+        panel.addView(label(getString(R.string.export_format_choose),13f,BG,true))
+        val fileFormat=RadioGroup(this).apply{orientation=RadioGroup.HORIZONTAL}
+        val jpegId=View.generateViewId()
+        val pngId=View.generateViewId()
+        fileFormat.addView(RadioButton(this).apply{
+            id=jpegId;text=getString(R.string.export_jpeg);setTextColor(BG)
+            textSize=13f
+        },RadioGroup.LayoutParams(0,dp(51),1f))
+        fileFormat.addView(RadioButton(this).apply{
+            id=pngId;text=getString(R.string.export_png);setTextColor(BG)
+            textSize=13f
+        },RadioGroup.LayoutParams(0,dp(51),1f))
+        fileFormat.check(jpegId)
+        panel.addView(fileFormat)
+
+        panel.addView(label(getString(R.string.export_quality),13f,BG,true))
+        val quality=RadioGroup(this).apply{orientation=RadioGroup.VERTICAL}
+        val sizes=intArrayOf(1080,2160,3840)
+        val texts=intArrayOf(R.string.export_size_small,R.string.export_size_medium,
+            R.string.export_size_large)
+        val sizeIds=IntArray(3){View.generateViewId()}
+        for(i in 0..2){
+            quality.addView(RadioButton(this).apply{
+                id=sizeIds[i];text=getString(texts[i]);textSize=13f;setTextColor(BG)
+                minHeight=dp(45)
+            })
+        }
+        quality.check(sizeIds[2])
+        panel.addView(quality)
+        panel.addView(label(getString(R.string.export_note_original),11f,BG).apply{
+            setPadding(0,dp(6),0,0)
+        })
+        val dialog=AlertDialog.Builder(this)
             .setTitle(R.string.export_format)
-            .setItems(arrayOf(getString(R.string.export_jpeg),
-                getString(R.string.export_png))){_,which->
-                exportImage(false,png=which==1)
+            .setView(ScrollView(this).apply{addView(panel)})
+            .setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.export_save_now){_,_->
+                val selected=sizes.getOrElse(sizeIds.indexOf(quality.checkedRadioButtonId)){3840}
+                exportImage(false,fileFormat.checkedRadioButtonId==pngId,selected)
             }
-            .setNegativeButton(R.string.cancel,null).show()
+            .setNeutralButton(R.string.export_share_now){_,_->
+                val selected=sizes.getOrElse(sizeIds.indexOf(quality.checkedRadioButtonId)){3840}
+                exportImage(true,fileFormat.checkedRadioButtonId==pngId,selected)
+            }.create()
+        dialog.show()
     }
 
-    private fun exportImage(share: Boolean, png:Boolean=false) {
+    private fun exportImage(share: Boolean,png:Boolean=false,maxEdge:Int=3840) {
         if (canvas.wallPhoto == null) { toast(R.string.choose_wall_first); return }
         if (canvas.artCount == 0) { toast(R.string.choose_art_first); return }
         if (exporting) return
@@ -1682,7 +1730,7 @@ class MainActivity : Activity() {
             var bitmap: Bitmap? = null
             var result: Uri? = null
             try {
-                bitmap = canvas.exportBitmap(renderSnapshot)
+                bitmap = canvas.exportBitmap(renderSnapshot,maxEdge.coerceIn(540,3840))
                 result = writeImage(bitmap,png)
             } catch (_: Throwable) {
                 // MediaStore is rolled back by writeJpeg when its output operation fails.
@@ -1706,7 +1754,7 @@ class MainActivity : Activity() {
     private fun writeImage(bitmap: Bitmap,png:Boolean): Uri {
         val metadata = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, "VSP_Wall_Studio_${timestamp()}.${if(png)"png" else "jpg"}")
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.MIME_TYPE,if(png)"image/png" else "image/jpeg")
             put(MediaStore.Images.Media.RELATIVE_PATH,
                 Environment.DIRECTORY_PICTURES + "/VSP Wall Studio")
             put(MediaStore.Images.Media.IS_PENDING, 1)
@@ -1718,7 +1766,7 @@ class MainActivity : Activity() {
                 ?: throw IOException("Output stream unavailable")
             stream.use {
                 if (!bitmap.compress(if(png)Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, if(png)100 else 93, it))
-                    throw IOException("JPEG compression failed")
+                    throw IOException("Image compression failed")
             }
             contentResolver.update(uri,
                 ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) },
