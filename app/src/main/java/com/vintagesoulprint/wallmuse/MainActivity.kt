@@ -1091,7 +1091,7 @@ class MainActivity : Activity() {
     }
     private fun promptSaveProject(){
         val input=EditText(this).apply{
-            singleLine=true
+            setSingleLine(true)
             setText(getString(R.string.default_project_name))
             selectAll()
         }
@@ -1109,7 +1109,7 @@ class MainActivity : Activity() {
             }.show()
     }
     private fun promptRenameProject(entry:ProjectLibrary.Entry){
-        val input=EditText(this).apply{singleLine=true;setText(entry.name)}
+        val input=EditText(this).apply{setSingleLine(true);setText(entry.name)}
         AlertDialog.Builder(this).setTitle(R.string.rename_project).setView(input)
             .setNegativeButton(R.string.cancel,null)
             .setPositiveButton(R.string.apply){_,_->
