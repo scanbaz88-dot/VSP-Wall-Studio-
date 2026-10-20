@@ -93,6 +93,7 @@ class WallCanvasView(context: Context) : View(context) {
     var livePreview = false
         set(value){field=value;invalidate()}
     var onSelectionChanged: (() -> Unit)? = null
+    var onPerspectiveFineChanged: ((FloatArray)->Unit)? = null
     var onGestureStart: (() -> Unit)? = null
     val artCount get() = artworks.size
     val selected get() = artworks.firstOrNull { it.id == selectedId }
@@ -347,7 +348,10 @@ class WallCanvasView(context: Context) : View(context) {
         val updated=perspective(l)
         updated[2*index]=((ux-bounds.left)/bounds.width()).coerceIn(-.35f,1.35f)
         updated[2*index+1]=((uy-bounds.top)/bounds.height()).coerceIn(-.35f,1.35f)
-        if(PerspectiveGeometry.valid(updated))setPerspective(updated)
+        if(PerspectiveGeometry.valid(updated)){
+            setPerspective(updated)
+            onPerspectiveFineChanged?.invoke(updated.copyOf())
+        }
     }
     private fun hitTest(x:Float,y:Float):ArtLayer?{
         for(i in artworks.size-1 downTo 0){
