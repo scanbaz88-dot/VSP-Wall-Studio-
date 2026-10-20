@@ -71,4 +71,7 @@
     <string name="camera_not_ready">Kamera görüntüsü henüz hazır değil.</string>
     <string name="crop_hint">Serbest kırpma: alanı, köşeleri veya kenarları parmağınla sürükle. En ve boy birbirinden bağımsız değişir. Alan seçilen çerçeveyi dolduracak şekilde ölçeklenir.</string>
     <string name="crop_reset">Kırpmayı sıfırla</string>
+    <string name="focus_settings">Ayarlar</string>
+    <string name="perspective">Perspektif</string>
+    <string name="perspective_hint">Dört köşeyi parmağınla taşıyarak tabloyu duvarın açısına uydur. Çerçeve de aynı perspektifte döner.</string>
 </resources>
