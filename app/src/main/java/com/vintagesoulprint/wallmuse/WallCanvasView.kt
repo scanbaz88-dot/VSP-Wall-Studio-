@@ -136,31 +136,20 @@ class WallCanvasView(context: Context) : View(context) {
         val(w,h)=artworkDimensions(l,room)
         val cx=room.left+l.cx*room.width();val cy=room.top+l.cy*room.height()
         val scale=min(w,h)
-        val photoFrame = FramePhotoLibrary.info(l.frame)
-        val stroke=when{l.frame==0->0f;FrameCatalog.isCanvas(l.frame)->scale*.022f
-            FrameCatalog.isOrnate(l.frame)->scale*.092f;else->scale*.055f}.coerceAtLeast(if(l.frame==0)0f else 2*density)
         val interior=RectF(cx-w/2,cy-h/2,cx+w/2,cy+h/2)
-        val exterior=if(photoFrame!=null)FramePhotoLibrary.outerBounds(interior,photoFrame)
-            else RectF(interior.left-stroke,interior.top-stroke,interior.right+stroke,interior.bottom+stroke)
-        val oval=FrameCatalog.isOval(l.frame)||FrameCatalog.isRound(l.frame)
+        val exterior=FrameEngine.exterior(interior,l.frame,l.printW)
+        val oval=FrameEngine.isOval(l.frame)||FrameEngine.isRound(l.frame)
         c.save();c.rotate(l.angle,cx,cy)
         // A soft ambient shadow plus a short contact shadow, both follow the chosen silhouette.
         p.reset();p.isAntiAlias=true;p.color=Color.argb(25,15,13,11)
         shadowShape(c,exterior,oval,scale*.030f,scale*.042f,p)
         p.color=Color.argb(15,15,13,11)
         shadowShape(c,exterior,oval,scale*.045f,scale*.061f,p)
-        if (photoFrame != null) {
-            // Art goes under the genuinely textured, transparent frame asset.
-            drawArtClipped(c,l,interior,oval,p)
-            FramePhotoLibrary.draw(c,context,l.frame,interior,exterior,p)
-        } else {
-            // Legacy and canvas frames are preserved for existing drafts.
-            if (l.frame!=0) drawFrameBody(c,l.frame,interior,exterior,oval,p)
-            drawArtClipped(c,l,interior,oval,p)
-            if(l.frame!=0) drawInsideLip(c,l.frame,interior,oval,p,scale)
-            if(FrameCatalog.isCanvas(l.frame))drawCanvasDetails(c,interior,exterior,p,scale)
-            if(FrameCatalog.isOrnate(l.frame))drawOrnaments(c,exterior,p,scale,oval,l.frame)
-        }
+        // Paint is inset underneath the frame's rebate, never pasted on top.
+        // 100% vector frame geometry: identical in preview, live camera, export.
+        drawArtClipped(c,l,interior,oval,p)
+        FrameEngine.draw(c,interior,l.frame,l.printW)
+        if(FrameEngine.isCanvas(l.frame))drawCanvasDetails(c,interior,exterior,p,scale)
         if(selected){p.reset();p.isAntiAlias=true;p.color=Color.rgb(207,173,99)
             p.style=Paint.Style.STROKE;p.strokeWidth=1.5f*density
             val border=RectF(exterior.left-4*density,exterior.top-4*density,exterior.right+4*density,exterior.bottom+4*density)
@@ -369,39 +358,56 @@ class WallCanvasView(context: Context) : View(context) {
 
 object FrameCatalog {
     data class Entry(val name:String,val category:String)
+    /** Stable frame ids: previously saved projects keep their selected frame. */
     val frames=listOf(
-        Entry("Çerçevesiz","Modern"),Entry("Koyu ceviz · klasik","Ahşap"),
-        Entry("Mat siyah · ince","Modern"),Entry("Doğal meşe","Ahşap"),
-        Entry("Eskitilmiş fildişi","Ahşap"),Entry("Fırçalanmış altın","Metal"),
-        Entry("Antika pirinç","Antika"),Entry("Rokoko altın oyma","Antika"),
-        Entry("Oval antika altın","Oval & Yuvarlak"),Entry("Yuvarlak ceviz","Oval & Yuvarlak"),
-        Entry("Oval mat siyah","Oval & Yuvarlak"),Entry("Galeri tuvali","Tuval"),
-        Entry("Floating canvas","Tuval"),Entry("Viktoryen oyma koyu","Antika"),
-        Entry("Fırçalanmış gümüş","Metal"),Entry("İnce bronz","Metal"),
+        Entry("Çerçevesiz · fine art","Modern"),
+        Entry("Koyu ceviz klasik","Ahşap"),
+        Entry("Mat siyah ince","Modern"),
+        Entry("Doğal meşe","Ahşap"),
+        Entry("Eskitilmiş fildişi","Ahşap"),
+        Entry("Fırçalanmış ince altın","Modern"),
+        Entry("Antika pirinç","Antika"),
+        Entry("Rokoko altın oyma","Antika"),
+        Entry("Oval antika altın","Oval & Yuvarlak"),
+        Entry("Yuvarlak ceviz","Oval & Yuvarlak"),
+        Entry("Oval mat siyah","Oval & Yuvarlak"),
+        Entry("Galeri tuvali","Tuval"),
+        Entry("Floating canvas","Tuval"),
+        Entry("Viktoryen koyu oyma","Antika"),
+        Entry("Fırçalanmış gümüş","Modern"),
+        Entry("İnce bronz metal","Modern"),
         Entry("Yuvarlak antika altın","Oval & Yuvarlak"),
-        // Photographic PNG/WebP silhouettes from the 12-frame image library.
-        Entry("İnce siyah metal fotoğraf","Modern"),
-        Entry("Klasik beyaz fotoğraf","Modern"),
-        Entry("Doğal meşe fotoğraf","Ahşap"),
-        Entry("Koyu ceviz fotoğraf","Ahşap"),
-        Entry("Eskitilmiş ahşap fotoğraf","Ahşap"),
-        Entry("Siyah galeri fotoğraf","Modern"),
-        Entry("Antika altın oyma fotoğraf","Antika"),
-        Entry("Viktoryen oyma fotoğraf","Antika"),
-        Entry("Eski bronz fotoğraf","Antika"),
-        Entry("Antika oval fotoğraf","Oval & Yuvarlak"),
-        Entry("Yuvarlak altın fotoğraf","Oval & Yuvarlak"),
-        Entry("Oval siyah fotoğraf","Oval & Yuvarlak")
+        Entry("İnce siyah metal","Modern"),
+        Entry("Klasik beyaz ahşap","Ahşap"),
+        Entry("Açık doğal meşe","Ahşap"),
+        Entry("Koyu ceviz derin profil","Ahşap"),
+        Entry("Eskitilmiş rustik ahşap","Ahşap"),
+        Entry("Siyah galeri","Modern"),
+        Entry("Antika altın işleme","Antika"),
+        Entry("Viktoryen sıcak altın","Antika"),
+        Entry("Eskitilmiş bronz","Antika"),
+        Entry("Oval antika bronz","Oval & Yuvarlak"),
+        Entry("Yuvarlak altın","Oval & Yuvarlak"),
+        Entry("Oval siyah ahşap","Oval & Yuvarlak"),
+        Entry("Geniş galeri kanvas","Tuval"),
+        Entry("Floating doğal meşe","Tuval"),
+        Entry("Floating siyah","Tuval"),
+        Entry("Eskitilmiş keten kanvas","Tuval")
     )
-    val englishNames=listOf("Unframed","Classic dark walnut","Slim matte black","Natural oak",
-        "Distressed ivory","Brushed gold","Antique brass","Rococo carved gold",
+    val englishNames=listOf(
+        "Unframed fine art","Classic dark walnut","Slim matte black","Natural oak",
+        "Distressed ivory","Slim brushed gold","Antique brass","Rococo carved gold",
         "Antique gold oval","Round walnut","Matte black oval","Gallery canvas",
-        "Floating canvas","Victorian dark carved","Brushed silver","Slim bronze","Round antique gold",
-        "Photo slim black metal", "Photo classic white", "Photo natural oak",
-        "Photo dark walnut", "Photo distressed wood", "Photo black gallery",
-        "Photo antique gold", "Photo Victorian carved", "Photo aged bronze",
-        "Photo antique oval", "Photo round gold", "Photo black oval")
-    fun displayName(id:Int):String=if(java.util.Locale.getDefault().language=="tr")frames[id].name else englishNames[id]
+        "Floating canvas","Victorian dark carving","Brushed silver","Slim bronze",
+        "Round antique gold","Slim black metal","Classic white wood","Light natural oak",
+        "Deep dark walnut","Distressed rustic wood","Black gallery",
+        "Antique gold carved","Victorian warm gold","Aged bronze",
+        "Antique bronze oval","Round gold","Black wood oval",
+        "Gallery wrap canvas","Floating natural oak","Floating black","Linen canvas"
+    )
+    fun displayName(id:Int):String = if(java.util.Locale.getDefault().language=="tr")
+        frames[id.coerceIn(0,frames.lastIndex)].name
+        else englishNames[id.coerceIn(0,englishNames.lastIndex)]
     fun categoryName(name:String):String=if(java.util.Locale.getDefault().language=="tr")name else when(name){
         "Ahşap" -> "Wood"
         "Antika" -> "Antique"
@@ -409,8 +415,8 @@ object FrameCatalog {
         "Tuval" -> "Canvas"
         else -> name
     }
-    fun isOval(id:Int)=id==8||id==10||id==26||id==28
-    fun isRound(id:Int)=id==9||id==16||id==27
-    fun isCanvas(id:Int)=id==11||id==12
-    fun isOrnate(id:Int)=id==7||id==8||id==13||id==16
+    fun isOval(id:Int)=FrameEngine.isOval(id)
+    fun isRound(id:Int)=FrameEngine.isRound(id)
+    fun isCanvas(id:Int)=FrameEngine.isCanvas(id)
+    fun isOrnate(id:Int)=FrameEngine.isOrnate(id)
 }
