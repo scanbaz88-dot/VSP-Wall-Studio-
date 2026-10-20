@@ -113,6 +113,7 @@ class MainActivity : Activity() {
     private var wallWidthCm = 300f
     private var editing = true
     private var exporting = false
+    private var billingInspector:PlayBillingReadiness?=null
     private var pendingCamera: Uri? = null
     private var wallUri: Uri? = null
     private val undo = ArrayDeque<WallCanvasView.State>()
@@ -304,6 +305,7 @@ class MainActivity : Activity() {
             addAction(button(getString(R.string.group_studio), "outlined") { showGroupStudio() })
             addAction(button(getString(R.string.smart_tools), "outlined") { showSmartTools() })
             addAction(button(getString(R.string.export_format), "outlined") { showExportFormatDialog() })
+            addAction(button("◇ "+getString(R.string.premium_center), "outlined") { showPremiumCenter() })
         }
         root.addView(actionsRow)
         headlineLabel = label(getString(R.string.headline), 15f, PAPER, true).apply {
@@ -531,6 +533,11 @@ class MainActivity : Activity() {
             if(grantResults.firstOrNull()==PackageManager.PERMISSION_GRANTED)toggleLiveCamera()
             else toast(R.string.camera_permission_denied)
         }
+    }
+    override fun onDestroy(){
+        billingInspector?.close()
+        billingInspector=null
+        super.onDestroy()
     }
     override fun onPause(){liveCamera?.stop();super.onPause()}
     override fun onResume(){super.onResume();if(liveMode&&frozenCameraFrame==null)liveCamera?.start();if(!editing)applyImmersiveBars(true)}
@@ -1285,11 +1292,61 @@ class MainActivity : Activity() {
                     6->showGroupStudio()
                     7->toggleDimensions()
                     8->showProjectLibrary()
-                    9->AlertDialog.Builder(this).setTitle(R.string.premium_info)
-                        .setMessage(R.string.premium_not_active)
-                        .setPositiveButton("OK",null).show()
+                    9->showPremiumCenter()
                 }
             }.setNegativeButton(R.string.cancel,null).show()
+    }
+
+    /** Truthful Play readiness screen: no payment can start from this build. */
+    private fun showPremiumCenter(){
+        val panel=LinearLayout(this).apply{
+            orientation=LinearLayout.VERTICAL
+            setPadding(dp(19),dp(12),dp(19),dp(12))
+        }
+        fun line(body:String,size:Float=14f,strong:Boolean=false):TextView=
+            label(body,size,BG,strong).apply{setPadding(dp(2),dp(5),dp(2),dp(5))}
+        panel.addView(line(getString(R.string.premium_lifetime_title),18f,true))
+        panel.addView(line(getString(R.string.premium_lifetime_about),13f))
+        panel.addView(line(getString(R.string.premium_test_access),13f,true))
+        val comparisons=listOf(
+            getString(R.string.premium_compare_projects),
+            getString(R.string.premium_compare_frames),
+            getString(R.string.premium_compare_export),
+            getString(R.string.premium_compare_gallery)
+        )
+        comparisons.forEach{panel.addView(line("✓  "+it,12f))}
+        panel.addView(line(getString(R.string.premium_no_payment),13f,true))
+        val feedback=line(getString(R.string.premium_status_idle),12f)
+        panel.addView(feedback)
+        panel.addView(button(getString(R.string.premium_check_play),"outlined"){
+            feedback.text=getString(R.string.premium_checking)
+            billingInspector?.close()
+            val inspector=PlayBillingReadiness(this)
+            billingInspector=inspector
+            inspector.inspect { status->
+                if(!isDestroyed && billingInspector===inspector){
+                    val info=when{
+                        !status.connected->getString(R.string.premium_play_unavailable)
+                        status.pendingOnPlay->getString(R.string.premium_play_pending)
+                        status.ownedOnPlay->getString(R.string.premium_play_unverified)
+                        status.productFound->getString(R.string.premium_play_product_found)
+                        else->getString(R.string.premium_play_not_listed)
+                    }
+                    val price=status.localizedPrice?.let{
+                        "\n"+getString(R.string.premium_play_price)+": "+it
+                    }?:""
+                    feedback.text=info+price+"\n"+getString(R.string.premium_no_payment)
+                }
+            }
+        },LinearLayout.LayoutParams(-1,dp(46)))
+        panel.addView(line(getString(R.string.premium_privacy_note),11f))
+        val scroll=ScrollView(this).apply{addView(panel)}
+        AlertDialog.Builder(this)
+            .setTitle(R.string.premium_center)
+            .setView(scroll)
+            .setPositiveButton(R.string.close){_,_->billingInspector?.close();billingInspector=null}
+            .setOnCancelListener{billingInspector?.close();billingInspector=null}
+            .show()
     }
 
     private fun recommendFrame(){
