@@ -38,6 +38,36 @@ class WallCanvasView(context: Context) : View(context) {
         layer.brx,layer.bry,layer.blx,layer.bly
     )
     fun selectedPerspective():FloatArray?=selected?.let{perspective(it)}
+    /**
+     * The editor must show precisely what the customer will buy/preview:
+     * current free crop + chosen native frame, never the uncropped original.
+     */
+    fun framedCropForPerspective():Bitmap? {
+        val l=selected?:return null
+        val ratio=if(FrameEngine.isRound(l.frame))1f
+            else (l.printH/l.printW.coerceAtLeast(1f)).coerceIn(.3f,5f)
+        val innerW=kotlin.math.min(560f,820f/ratio)
+        val innerH=innerW*ratio
+        val inner=RectF(0f,0f,innerW,innerH)
+        val outside=FrameEngine.exterior(inner,l.frame,l.printW)
+        val margin=10f
+        val result=Bitmap.createBitmap(
+            (outside.width()+margin*2).roundToInt().coerceAtLeast(8),
+            (outside.height()+margin*2).roundToInt().coerceAtLeast(8),
+            Bitmap.Config.ARGB_8888
+        )
+        val dx=margin-outside.left;val dy=margin-outside.top
+        val aperture=RectF(inner.left+dx,inner.top+dy,inner.right+dx,inner.bottom+dy)
+        val frame=RectF(outside.left+dx,outside.top+dy,outside.right+dx,outside.bottom+dy)
+        val c=Canvas(result)
+        val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        val oval=FrameEngine.isOval(l.frame)||FrameEngine.isRound(l.frame)
+        drawArtClipped(c,l,aperture,oval,paint)
+        FrameEngine.draw(c,aperture,l.frame,l.printW)
+        if(FrameEngine.isCanvas(l.frame))drawCanvasDetails(c,aperture,frame,paint,kotlin.math.min(innerW,innerH))
+        return result
+    }
+
     fun setPerspective(points:FloatArray){
         if(!PerspectiveGeometry.valid(points))return
         selected?.apply{
@@ -275,6 +305,7 @@ class WallCanvasView(context: Context) : View(context) {
         when(e.actionMasked){
             MotionEvent.ACTION_DOWN->{val picked=hitTest(e.x,e.y);selectedId=picked?.id
                 touchX=e.x;touchY=e.y;originalX=picked?.cx?:0f;originalY=picked?.cy?:0f
+                if(picked!=null)parent?.requestDisallowInterceptTouchEvent(true)
                 if(focusMode){removeCallbacks(hideFocusHandles);focusHandlesVisible=picked!=null}
                 gestureRecorded=false;pinching=false;onSelectionChanged?.invoke();invalidate();return true}
             MotionEvent.ACTION_POINTER_DOWN->{if(e.pointerCount>=2&&selected!=null){
