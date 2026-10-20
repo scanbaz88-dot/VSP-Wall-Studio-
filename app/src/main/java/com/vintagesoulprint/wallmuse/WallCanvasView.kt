@@ -29,6 +29,10 @@ class WallCanvasView(context: Context) : View(context) {
     var selectedId: Long? = null; private set
     var showArtwork = true; private set
     var showSelectionHandles = true
+    var smartSnap=true
+        set(value){field=value;invalidate()}
+    var ambientShadows=true
+        set(value){field=value;invalidate()}
     var focusMode=false
         set(value){field=value;focusHandlesVisible=false;invalidate()}
     private var focusHandlesVisible=false
@@ -89,6 +93,45 @@ class WallCanvasView(context: Context) : View(context) {
     fun centerSelected(){
         selected?.let{it.cx=.5f;it.cy=.48f}
         invalidate()
+    }
+    /** Apply an arrangement to every added artwork without changing its frame or crop. */
+    fun applyGalleryLayout(layout:GalleryPlanner.Layout):Boolean {
+        if(artworks.isEmpty())return false
+        val placements=GalleryPlanner.arrange(artworks.size,layout)
+        artworks.forEachIndexed { i,layer->
+            val plan=placements[i]
+            layer.cx=plan.cx;layer.cy=plan.cy
+            layer.widthFraction=plan.widthFraction
+            layer.angle=0f
+        }
+        onSelectionChanged?.invoke()
+        invalidate()
+        return true
+    }
+    private fun magnetize(layer:ArtLayer){
+        if(!smartSnap)return
+        val other=artworks.filter{it.id!=layer.id}
+        layer.cx=GalleryPlanner.snap(layer.cx,other.map{it.cx})
+        layer.cy=GalleryPlanner.snap(layer.cy,other.map{it.cy})
+    }
+    private fun drawAlignmentGuides(c:Canvas){
+        val layer=selected?:return
+        if(!smartSnap||!showArtwork||perspectivePreview)return
+        val others=artworks.filter{it.id!=layer.id}
+        val x=GalleryPlanner.snap(layer.cx,others.map{it.cx})
+        val y=GalleryPlanner.snap(layer.cy,others.map{it.cy})
+        val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{
+            color=0x66D6BA88
+            strokeWidth=1f*density
+        }
+        if(kotlin.math.abs(layer.cx-x)<.00001f){
+            val gx=photoRect.left+photoRect.width()*x
+            c.drawLine(gx,photoRect.top,gx,photoRect.bottom,p)
+        }
+        if(kotlin.math.abs(layer.cy-y)<.00001f){
+            val gy=photoRect.top+photoRect.height()*y
+            c.drawLine(photoRect.left,gy,photoRect.right,gy,p)
+        }
     }
     var livePreview = false
         set(value){field=value;invalidate()}
@@ -183,6 +226,7 @@ class WallCanvasView(context: Context) : View(context) {
             photoRect.set(fit(room.width.toFloat(),room.height.toFloat(),bound))
             renderScene(c,photoRect,showArtwork&&(showSelectionHandles||(focusMode&&focusHandlesVisible)))
         }
+        if(showSelectionHandles&&!focusMode)drawAlignmentGuides(c)
         if(perspectivePreview&&perspectiveFineTune&&showArtwork)drawPerspectiveHandles(c)
     }
     private fun fit(w:Float,h:Float,b:RectF):RectF {val s=min(b.width()/w,b.height()/h);val aw=w*s;val ah=h*s
@@ -208,11 +252,13 @@ class WallCanvasView(context: Context) : View(context) {
         val oval=FrameEngine.isOval(l.frame)||FrameEngine.isRound(l.frame)
         c.save();c.rotate(l.angle,cx,cy)
         c.concat(PerspectiveGeometry.matrix(exterior,perspective(l)))
-        // A soft ambient shadow plus a short contact shadow, both follow the chosen silhouette.
-        p.reset();p.isAntiAlias=true;p.color=Color.argb(25,15,13,11)
-        shadowShape(c,exterior,oval,scale*.030f,scale*.042f,p)
-        p.color=Color.argb(15,15,13,11)
-        shadowShape(c,exterior,oval,scale*.045f,scale*.061f,p)
+        // Shadow is a separate physically coherent layer, always behind the frame.
+        if(ambientShadows){
+            p.reset();p.isAntiAlias=true;p.color=Color.argb(25,15,13,11)
+            shadowShape(c,exterior,oval,scale*.030f,scale*.042f,p)
+            p.color=Color.argb(15,15,13,11)
+            shadowShape(c,exterior,oval,scale*.045f,scale*.061f,p)
+        }
         // Paint is inset underneath the frame's rebate, never pasted on top.
         // 100% vector frame geometry: identical in preview, live camera, export.
         drawArtClipped(c,l,interior,oval,p)
@@ -434,7 +480,8 @@ class WallCanvasView(context: Context) : View(context) {
             MotionEvent.ACTION_POINTER_UP->{val idx=if(e.actionIndex==0)1 else 0
                 if(idx<e.pointerCount){touchX=e.getX(idx);touchY=e.getY(idx);originalX=selected?.cx?:originalX;originalY=selected?.cy?:originalY}
                 pinching=false;return true}
-            MotionEvent.ACTION_UP->{pinching=false;performClick();onSelectionChanged?.invoke()
+            MotionEvent.ACTION_UP->{selected?.let{magnetize(it)}
+                pinching=false;performClick();onSelectionChanged?.invoke()
                 if(focusMode)postDelayed(hideFocusHandles,1300L)
                 return true}
             MotionEvent.ACTION_CANCEL->{pinching=false
