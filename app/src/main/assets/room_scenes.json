@@ -12,9 +12,9 @@
       "photo_url": "https://www.pexels.com/photo/a-beige-sofa-in-the-living-room-7160605/",
       "free": true,
       "anchor": [
-        0.52,
+        0.76,
         0.32,
-        0.2
+        0.17
       ]
     },
     {
@@ -27,9 +27,9 @@
       "photo_url": "https://www.pexels.com/photo/chairs-and-table-by-beige-wall-in-living-room-19878535/",
       "free": false,
       "anchor": [
-        0.5,
-        0.31,
-        0.2
+        0.67,
+        0.2,
+        0.16
       ]
     },
     {
@@ -162,9 +162,9 @@
       "photo_url": "https://www.pexels.com/photo/spacious-interior-with-a-wooden-floor-and-a-coffee-table-19966784/",
       "free": true,
       "anchor": [
-        0.47,
-        0.32,
-        0.2
+        0.66,
+        0.29,
+        0.18
       ]
     },
     {
@@ -177,9 +177,9 @@
       "photo_url": "https://www.pexels.com/photo/interior-of-a-modern-dining-room-17860417/",
       "free": false,
       "anchor": [
-        0.4,
-        0.38,
-        0.26
+        0.25,
+        0.25,
+        0.2
       ]
     },
     {
@@ -192,9 +192,9 @@
       "photo_url": "https://www.pexels.com/photo/wooden-table-and-chairs-in-a-modern-dining-room-19846386/",
       "free": false,
       "anchor": [
-        0.78,
-        0.35,
-        0.2
+        0.67,
+        0.19,
+        0.15
       ]
     },
     {
@@ -207,9 +207,9 @@
       "photo_url": "https://www.pexels.com/photo/table-in-dining-room-in-apartment-7195894/",
       "free": false,
       "anchor": [
-        0.79,
-        0.38,
-        0.18
+        0.87,
+        0.36,
+        0.14
       ]
     },
     {
@@ -252,9 +252,9 @@
       "photo_url": "https://www.pexels.com/photo/bags-on-the-floor-and-branch-10554838/",
       "free": false,
       "anchor": [
-        0.54,
-        0.31,
-        0.27
+        0.28,
+        0.28,
+        0.18
       ]
     },
     {
@@ -267,9 +267,9 @@
       "photo_url": "https://www.pexels.com/photo/minimalist-design-of-a-home-office-8004011/",
       "free": true,
       "anchor": [
-        0.26,
+        0.16,
         0.4,
-        0.26
+        0.18
       ]
     },
     {
@@ -327,9 +327,9 @@
       "photo_url": "https://www.pexels.com/photo/photo-of-an-empty-room-3935349/",
       "free": false,
       "anchor": [
-        0.58,
-        0.42,
-        0.29
+        0.81,
+        0.41,
+        0.18
       ]
     },
     {
