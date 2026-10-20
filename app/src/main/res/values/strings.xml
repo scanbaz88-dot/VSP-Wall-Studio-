@@ -181,4 +181,19 @@
     <string name="export_save_now">Save image</string>
     <string name="export_share_now">Share image</string>
     <string name="export_note_original">Images will never be artificially enlarged beyond the source wall photo resolution.</string>
+    <string name="ready_rooms">Ready Rooms</string>
+    <string name="room_library_intro">24 ready scenes · 6 free · 18 Premium previews. Photos work offline; your artworks stay in place.</string>
+    <string name="room_library_credit">Photos: Pexels contributors. Tap a photographer name for the source. Premium scenes are unlocked for testing.</string>
+    <string name="room_library_error">Could not load ready-room photos. Please update the app.</string>
+    <string name="room_all">All</string>
+    <string name="room_living">Living</string>
+    <string name="room_bedroom">Bedroom</string>
+    <string name="room_dining">Kitchen/Dining</string>
+    <string name="room_hallway">Hallway</string>
+    <string name="room_office">Study</string>
+    <string name="room_studio">Blank wall</string>
+    <string name="room_free">Free</string>
+    <string name="room_premium_preview">Premium · Test Unlocked</string>
+    <string name="room_applied">%1$s scene is ready. Add your art.</string>
+    <string name="room_replace_prompt">Changing the wall keeps your paintings. Use the selected scene?</string>
 </resources>
