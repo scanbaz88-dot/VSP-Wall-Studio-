@@ -11,8 +11,8 @@ android {
         applicationId = "com.vintagesoulprint.wallmuse"
         minSdk = 29
         targetSdk = 36
-        versionCode = 17
-        versionName = "3.0.0"
+        versionCode = 18
+        versionName = "3.1.0"
     }
     // Shared, PUBLIC development-only debug certificate. Never use for Play releases.
     // The preview package has its own identity so existing test installations remain untouched.
@@ -45,5 +45,8 @@ android {
 }
 
 dependencies {
+    // Read-only Billing readiness; checkout remains disabled until trusted
+    // Play Developer API verification and backend acknowledgment exist.
+    implementation("com.android.billingclient:billing:9.1.0")
     testImplementation("junit:junit:4.13.2")
 }
