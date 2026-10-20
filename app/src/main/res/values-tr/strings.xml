@@ -196,4 +196,11 @@
     <string name="room_premium_preview">Premium · Testte Açık</string>
     <string name="room_applied">%1$s duvarı hazır. Eser ekleyebilirsin.</string>
     <string name="room_replace_prompt">Duvarı değiştirmek mevcut tabloları silmez. Seçilen sahneye geçilsin mi?</string>
+    <string name="premium_verified_live">Ömür Boyu Premium doğrulandı ve aktif.</string>
+    <string name="premium_buy_lifetime">Ömür Boyu Premium Satın Al</string>
+    <string name="premium_restore">Satın Almamı Geri Yükle</string>
+    <string name="premium_requires_console">Ödeme altyapısı henüz etkin değil: Play Console ürünü ve doğrulama sunucusu kurulmalı.</string>
+    <string name="premium_secure_checkout">Ödeme yalnızca Google Play üzerinden alınır. Satın alma güvenli sunucuda doğrulanır.</string>
+    <string name="premium_scene_locked">Bu hazır oda Ömür Boyu Premium kapsamındadır. Önce Premium satın alabilir veya mevcut satın alımınızı geri yükleyebilirsiniz.</string>
+    <string name="room_frame_ready">Tabloya uygun duvar</string>
 </resources>
