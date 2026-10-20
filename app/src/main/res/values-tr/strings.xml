@@ -18,7 +18,7 @@
     <string name="after">Sonra</string>
     <string name="save">Resmi kaydet</string>
     <string name="share">Paylaş</string>
-    <string name="focus">Tam ekran</string>
+    <string name="focus">Focus View</string>
     <string name="edit">Araçları göster</string>
     <string name="room_prompt">Eser ekle veya duvar fotoğrafı seç</string>
     <string name="room_subprompt">Sonra galerinden bir eser ekle.</string>
