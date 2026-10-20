@@ -80,6 +80,10 @@ class WallCanvasView(context: Context) : View(context) {
         selected?.let{it.angle=PerspectiveGeometry.quarterTurn(it.angle)}
         onSelectionChanged?.invoke();invalidate()
     }
+    fun centerSelected(){
+        selected?.let{it.cx=.5f;it.cy=.48f}
+        invalidate()
+    }
     var livePreview = false
         set(value){field=value;invalidate()}
     var onSelectionChanged: (() -> Unit)? = null
