@@ -72,7 +72,8 @@ class MainActivity : Activity() {
     private lateinit var tools: LinearLayout
     private lateinit var bottom: LinearLayout
     private lateinit var sizeSlider: SeekBar
-    private lateinit var angleSlider: SeekBar
+    private lateinit var focusToolbar: LinearLayout
+    private lateinit var focusSizeLabel: TextView
     private lateinit var sizeValue: TextView
     private lateinit var angleValue: TextView
     private lateinit var selectedLabel: TextView
@@ -188,7 +189,9 @@ class MainActivity : Activity() {
                         saved.printW,
                         if(saved.printH==0f) saved.printW * it.height / max(1,it.width) else saved.printH,
                         saved.trim,
-                        saved.cropLeft, saved.cropTop, saved.cropRight, saved.cropBottom)
+                        saved.cropLeft, saved.cropTop, saved.cropRight, saved.cropBottom,
+                        saved.tlx,saved.tly,saved.trx,saved.tryY,
+                        saved.brx,saved.bry,saved.blx,saved.bly)
                 }
             }
             canvas.restore(WallCanvasView.State(layers, draft.selectedId))
@@ -282,6 +285,8 @@ class MainActivity : Activity() {
         val toolbar = hRow().apply {
             addAction(button(getString(R.string.print_size), "quiet") { showPrintSizes() })
             addAction(button(getString(R.string.crop), "quiet") { showCropSettings() })
+            addAction(button(getString(R.string.perspective), "quiet") { showPerspectiveSettings() })
+            addAction(button("⟳ 90°", "quiet") { rotateArtwork() })
             addAction(button(getString(R.string.frame_library), "quiet") { showFrames() })
             addAction(button(getString(R.string.wall_width), "quiet") { showWallWidth() })
             addAction(button(getString(R.string.random_frame), "quiet") { randomFrame() })
@@ -315,13 +320,14 @@ class MainActivity : Activity() {
         sizeRow.addView(sizeValue, LinearLayout.LayoutParams(dp(43), -2))
         tools.addView(sizeRow)
 
-        val angleRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        angleRow.addView(label(getString(R.string.tilt), 12f, PAPER, true),
-            LinearLayout.LayoutParams(dp(47), -2))
-        angleSlider = slider().apply { max = 90; progress = 45 }
-        angleRow.addView(angleSlider, LinearLayout.LayoutParams(0, dp(33), 1f))
-        angleValue = label("0°", 11f, GOLD, true).apply { gravity = Gravity.END }
-        angleRow.addView(angleValue, LinearLayout.LayoutParams(dp(43), -2))
+        val angleRow = LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL}
+        angleRow.addView(button("⟳ 90°", "quiet"){ rotateArtwork() },
+            LinearLayout.LayoutParams(dp(105),dp(40)))
+        angleRow.addView(button(getString(R.string.perspective), "quiet"){
+            showPerspectiveSettings()
+        },LinearLayout.LayoutParams(0,dp(40),1f))
+        angleValue=label("0°",11f,GOLD,true).apply{gravity=Gravity.END}
+        angleRow.addView(angleValue,LinearLayout.LayoutParams(dp(48),-2))
         tools.addView(angleRow)
         root.addView(tools)
 
@@ -332,16 +338,6 @@ class MainActivity : Activity() {
                 if (fromUser) {
                     canvas.setSize((12 + progress) / 100f)
                     sizeValue.text = "${12 + progress}%"
-                }
-            }
-        })
-        angleSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onStartTrackingTouch(seekBar: SeekBar) { if (canvas.selected != null) checkpoint() }
-            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    canvas.setAngle((progress - 45).toFloat())
-                    angleValue.text = "${progress - 45}°"
                 }
             }
         })
@@ -458,9 +454,7 @@ class MainActivity : Activity() {
         if (!::canvas.isInitialized || !::sizeSlider.isInitialized) return
         val layer = canvas.selected
         sizeSlider.isEnabled = layer != null
-        angleSlider.isEnabled = layer != null
         sizeSlider.progress = if (layer == null) 20 else (layer.widthFraction * 100).toInt() - 12
-        angleSlider.progress = if (layer == null) 45 else layer.angle.toInt() + 45
         sizeValue.text = if (layer == null) "—" else "${(layer.widthFraction * 100).toInt()}%"
         angleValue.text = if (layer == null) "—" else "${layer.angle.toInt()}°"
         selectedLabel.text = if(layer==null) getString(R.string.selection_hint)
