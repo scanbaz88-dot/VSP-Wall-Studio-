@@ -57,6 +57,7 @@ class MainActivity : Activity() {
         private const val REQUEST_ART = 102
         private const val REQUEST_CAMERA = 103
         private const val REQUEST_CAMERA_PERMISSION = 104
+        private const val REQUEST_READY_ROOM = 105
         private const val BG = 0xFF151B1B.toInt()
         private const val PANEL = 0xFF222B2A.toInt()
         private const val GOLD = 0xFFD6BA88.toInt()
@@ -96,6 +97,7 @@ class MainActivity : Activity() {
     private var liveMode = false
     private lateinit var tools: LinearLayout
     private lateinit var bottom: LinearLayout
+    private lateinit var editorQuickNav:LinearLayout
     private lateinit var sizeSlider: SeekBar
     private lateinit var focusToolbar: LinearLayout
     private lateinit var focusHeaderLabel: TextView
@@ -141,6 +143,9 @@ class MainActivity : Activity() {
         val retained = lastNonConfigurationInstance as? MemorySession
         if (retained != null) restoreMemorySession(retained)
         else restoreSavedDraft()
+        if(savedInstanceState==null){
+            root.post{launchHomeRequest()}
+        }
         // Show a small introduction only once, never on each app update/restart.
         if(!getPreferences(MODE_PRIVATE).getBoolean("v3_guide_seen",false)){
             getPreferences(MODE_PRIVATE).edit().putBoolean("v3_guide_seen",true).apply()
@@ -275,6 +280,12 @@ class MainActivity : Activity() {
             letterSpacing = .14f
         })
         headerBar = header
+        header.addView(button("⌂", "quiet"){
+            startActivity(Intent(this,HomeActivity::class.java).apply{
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+            finish()
+        },LinearLayout.LayoutParams(dp(48),dp(46)).apply{marginEnd=dp(5)})
         header.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
         focusButton = button(getString(R.string.focus), "quiet") { setFocusMode(editing) }
         header.addView(focusButton)
@@ -297,7 +308,7 @@ class MainActivity : Activity() {
             addAction(button("✦ "+getString(R.string.smart_assistant),"outlined"){
                 startSmartWallAssistant()
             })
-            addAction(button("⌂ "+getString(R.string.ready_rooms),"outlined"){showRoomScenes()})
+            addAction(button("⌂ "+getString(R.string.ready_rooms),"outlined"){openRoomLibrary()})
             addAction(button(getString(R.string.pick_wall), "outlined") { pickImage(REQUEST_WALL) })
             addAction(button(getString(R.string.take_photo), "outlined") { takeCameraPhoto() })
             addAction(button(getString(R.string.live_camera), "outlined") {toggleLiveCamera()}.also{cameraButton=it})
@@ -401,6 +412,41 @@ class MainActivity : Activity() {
         // The editing tools remain accessible by scrolling, not by shrinking video.
         normalPreviewHeight=(resources.displayMetrics.heightPixels*.75f).toInt().coerceAtLeast(dp(300))
         root.addView(canvasHolder,LinearLayout.LayoutParams(-1,normalPreviewHeight))
+        editorQuickNav=LinearLayout(this).apply{
+            orientation=LinearLayout.HORIZONTAL
+            gravity=Gravity.CENTER
+            setPadding(dp(5),dp(5),dp(5),dp(5))
+            setBackgroundColor(0xFF1E2522.toInt())
+        }
+        val editTools=listOf(
+            Triple("＋",getString(R.string.add_art),0),
+            Triple("▣",getString(R.string.frame_library),1),
+            Triple("▦",getString(R.string.gallery_layout),2),
+            Triple("⌑",getString(R.string.print_size),3),
+            Triple("↓",getString(R.string.export_format),4)
+        )
+        editTools.forEach{(glyph,text,id)->
+            val action=LinearLayout(this).apply{
+                orientation=LinearLayout.VERTICAL
+                gravity=Gravity.CENTER
+                isClickable=true
+                setOnClickListener{
+                    when(id){
+                        0->if(canvas.artCount<12)pickImage(REQUEST_ART)else toast(R.string.max_art)
+                        1->showFrames()
+                        2->showGalleryLayouts()
+                        3->showPrintSizes()
+                        else->showExportFormatDialog()
+                    }
+                }
+            }
+            action.addView(label(glyph,24f,GOLD,true).apply{gravity=Gravity.CENTER})
+            action.addView(label(text,9f,PAPER).apply{
+                gravity=Gravity.CENTER;maxLines=1
+            })
+            editorQuickNav.addView(action,LinearLayout.LayoutParams(0,dp(66),1f))
+        }
+        root.addView(editorQuickNav)
 
         tools = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -559,6 +605,7 @@ class MainActivity : Activity() {
         headerBar.visibility=visibility
         tools.visibility=visibility
         bottom.visibility=visibility
+        editorQuickNav.visibility=visibility
         actionsRow.visibility=visibility
         headlineLabel.visibility=visibility
         fullscreenExitButton.visibility=if(active)View.VISIBLE else View.GONE
@@ -770,7 +817,7 @@ class MainActivity : Activity() {
                     11->showGroupStudio()
                     12->toggleDimensions()
                     13->startSmartWallAssistant()
-                    14->showRoomScenes()
+                    14->openRoomLibrary()
                 }
             }.setNegativeButton(R.string.cancel,null).create()
         dialog.setOnShowListener{
@@ -1559,40 +1606,64 @@ class MainActivity : Activity() {
             }.show()
     }
 
-    /** Choose a bundled PHOTO with preserved artwork and private autosave. */
-    private fun showRoomScenes(){
-        RoomScenePicker.show(this) { scene ->
-            val open={
-                try{
-                    val photo=RoomSceneCatalog.bitmap(this,scene.id)
-                    // Save the room in internal app files so named projects reopen
-                    // after process death, even without internet or CDN access.
-                    val uri=RoomSceneCatalog.persistentUri(this,scene.id)
-                    if(liveMode)disableLiveCamera()
-                    canvas.replaceWallKeepArtwork(photo)
-                    wallUri=uri
-                    undo.clear();redo.clear()
-                    canvas.setBeforeMode(false)
-                    beforeButton.text=getString(R.string.before)
-                    syncControls()
-                    refreshSmartWallAssistant()
-                    Toast.makeText(this,
-                        getString(R.string.room_applied,scene.title(this)),
-                        Toast.LENGTH_SHORT).show()
-                    // No network call; only private metadata manifest is saved.
-                    try{ProjectStore.write(this,uri.toString(),
-                        canvas.state(),canvas.showArtwork)}catch(_:Exception){}
-                }catch(_:Exception){
-                    toast(R.string.room_library_error)
-                }
-            }
-            if(canvas.artCount>0){
-                AlertDialog.Builder(this)
-                    .setMessage(R.string.room_replace_prompt)
-                    .setNegativeButton(R.string.cancel,null)
-                    .setPositiveButton(R.string.apply){_,_->open()}
-                    .show()
-            }else open()
+    /** Editor keeps current art when changing ready-room wallpaper. */
+    private fun openRoomLibrary(){
+        startActivityForResult(Intent(this,RoomLibraryActivity::class.java).apply{
+            putExtra("return_selection",true)
+        },REQUEST_READY_ROOM)
+    }
+    private fun applyReadyScene(id:String,keepArtwork:Boolean){
+        val scene=RoomSceneCatalog.scenes(this).firstOrNull{it.id==id}
+            ?:throw IllegalArgumentException("Unknown scene")
+        val image=RoomSceneCatalog.bitmap(this,id)
+        val uri=RoomSceneCatalog.persistentUri(this,id)
+        if(liveMode)disableLiveCamera()
+        if(keepArtwork)canvas.replaceWallKeepArtwork(image)else canvas.setWall(image)
+        wallUri=uri
+        undo.clear();redo.clear()
+        canvas.setBeforeMode(false)
+        beforeButton.text=getString(R.string.before)
+        syncControls()
+        refreshSmartWallAssistant()
+        try{ProjectStore.write(this,uri.toString(),
+            canvas.state(),canvas.showArtwork)}catch(_:Exception){}
+        Toast.makeText(this,getString(R.string.room_applied,scene.title(this)),
+            Toast.LENGTH_SHORT).show()
+    }
+    private fun changeReadyScene(id:String){
+        val apply={
+            try{applyReadyScene(id,true)}
+            catch(_:Exception){toast(R.string.room_library_error)}
+        }
+        if(canvas.artCount>0){
+            AlertDialog.Builder(this)
+                .setMessage(R.string.room_replace_prompt)
+                .setNegativeButton(R.string.cancel,null)
+                .setPositiveButton(R.string.apply){_,_->apply()}
+                .show()
+        }else apply()
+    }
+    private fun launchHomeRequest(){
+        val scene=intent.getStringExtra("scene_id")
+        val project=intent.getStringExtra("project_id")
+        val mode=intent.getStringExtra("home_mode")
+        if(scene!=null){
+            try{applyReadyScene(scene,false)}
+            catch(_:Exception){toast(R.string.room_library_error)}
+        }else if(project!=null){
+            val draft=try{ProjectLibrary.open(this,project)}catch(_:Exception){null}
+            if(draft!=null){
+                if(liveMode)disableLiveCamera()
+                undo.clear();redo.clear()
+                restoreNamedDraft(draft)
+            }else toast(R.string.draft_restore_error)
+        }
+        when(mode){
+            "camera"->toggleLiveCamera()
+            "wall_photo"->pickImage(REQUEST_WALL)
+            "assistant"->startSmartWallAssistant()
+            "premium"->showPremiumCenter()
+            "tools"->editorScroll.post{editorScroll.smoothScrollTo(0,tools.top)}
         }
     }
 
@@ -1645,6 +1716,11 @@ class MainActivity : Activity() {
                     loadWall(uri)
                 } catch (_: Exception) { toast(R.string.image_error) }
             } else if (uri != null) contentResolver.delete(uri, null, null)
+            return
+        }
+        if(requestCode==REQUEST_READY_ROOM){
+            if(resultCode==RESULT_OK)
+                data?.getStringExtra("scene_id")?.let{changeReadyScene(it)}
             return
         }
         if (resultCode != RESULT_OK) return
