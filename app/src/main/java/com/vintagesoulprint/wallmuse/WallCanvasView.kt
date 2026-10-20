@@ -49,6 +49,10 @@ class WallCanvasView(context: Context) : View(context) {
     }
     var ambientShadows=true
         set(value){field=value;invalidate()}
+    var wallWidthCm=300f
+        set(value){field=value.coerceIn(50f,1500f);invalidate()}
+    var showMeasurements=false
+        set(value){field=value;invalidate()}
     var focusMode=false
         set(value){field=value;focusHandlesVisible=false;invalidate()}
     private var focusHandlesVisible=false
@@ -210,6 +214,44 @@ class WallCanvasView(context: Context) : View(context) {
         invalidate()
     }
 
+    private fun drawMeasurementGuides(c:Canvas){
+        if(!showMeasurements||!showArtwork)return
+        val l=selected?:return
+        val (w,h)=artworkDimensions(l,photoRect)
+        val centerX=photoRect.left+l.cx*photoRect.width()
+        val centerY=photoRect.top+l.cy*photoRect.height()
+        val left=centerX-w*.5f
+        val right=centerX+w*.5f
+        val top=centerY-h*.5f
+        val bottom=centerY+h*.5f
+        val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{
+            color=0xFFD6BA88.toInt()
+            strokeWidth=1.25f*density
+        }
+        val offset=10*density
+        c.drawLine(left,top-offset,right,top-offset,p)
+        c.drawLine(left,top-offset-3*density,left,top-offset+3*density,p)
+        c.drawLine(right,top-offset-3*density,right,top-offset+3*density,p)
+        c.drawLine(right+offset,top,right+offset,bottom,p)
+        c.drawLine(right+offset-3*density,top,right+offset+3*density,top,p)
+        c.drawLine(right+offset-3*density,bottom,right+offset+3*density,bottom,p)
+        // Width based on calibrated/specified wall span. Rotated or perspectived
+        // artworks are only APPROXIMATELY measurable from a single still image.
+        val widthCm=wallWidthCm*l.widthFraction
+        val heightCm=widthCm*(h/w.coerceAtLeast(1f))
+        p.textSize=12*density
+        p.typeface=Typeface.create("sans-serif-medium",Typeface.NORMAL)
+        p.textAlign=Paint.Align.CENTER
+        p.setShadowLayer(2*density,0f,1f*density,0xEE1B211E.toInt())
+        c.drawText("≈ %.1f cm".format(java.util.Locale.US,widthCm),
+            centerX,(top-offset-5*density).coerceAtLeast(photoRect.top+15*density),p)
+        c.save()
+        c.rotate(90f,right+offset,centerY)
+        c.drawText("≈ %.1f cm".format(java.util.Locale.US,heightCm),
+            right+offset,centerY-4*density,p)
+        c.restore()
+        p.clearShadowLayer()
+    }
     private fun magnetize(layer:ArtLayer){
         if(!smartSnap)return
         val other=artworks.filter{it.id!=layer.id}
@@ -269,7 +311,7 @@ class WallCanvasView(context: Context) : View(context) {
         return Bitmap.createBitmap(pixels,width,height,Bitmap.Config.ARGB_8888)
     }
     fun setWall(bitmap: Bitmap) {
-        wallPhoto = bitmap; artworks.clear(); selectedId = null; nextId=1L
+        wallPhoto = bitmap; artworks.clear(); groupedIds.clear(); selectedId = null; nextId=1L
         showArtwork = true; onSelectionChanged?.invoke(); invalidate()
     }
     /** Replace the photograph without discarding the artwork composed on the default wall. */
@@ -286,19 +328,23 @@ class WallCanvasView(context: Context) : View(context) {
         val initialWidth = min(.34f,.60f/max(.6f,tallness))
         val layer=ArtLayer(nextId++,bitmap,.49f+stagger,.44f+stagger,initialWidth,0f,20,
             sourceUri,widthCm,heightCm,0f)
-        artworks.add(layer); selectedId=layer.id; showArtwork=true
+        artworks.add(layer); groupedIds.clear(); selectedId=layer.id; showArtwork=true
         onSelectionChanged?.invoke();invalidate();return true
     }
-    fun removeSelected(): Boolean {val removed=artworks.removeAll{it.id==selectedId};selectedId=artworks.lastOrNull()?.id
+    fun removeSelected(): Boolean {val removed=artworks.removeAll{it.id==selectedId};groupedIds.retainAll(artworks.map{it.id}.toSet());selectedId=artworks.lastOrNull()?.id
         if(removed){onSelectionChanged?.invoke();invalidate()};return removed}
     fun duplicateSelected(): Boolean {if(artworks.size>=12)return false
         val old=selected?:return false;val clone=old.copy(id=nextId++,cx=(old.cx+.07f).coerceIn(.1f,.9f),cy=(old.cy+.07f).coerceIn(.1f,.9f))
         artworks.add(clone);selectedId=clone.id;onSelectionChanged?.invoke();invalidate();return true}
-    fun clearArtwork(){artworks.clear();selectedId=null;showArtwork=true;onSelectionChanged?.invoke();invalidate()}
+    fun clearArtwork(){artworks.clear();groupedIds.clear();selectedId=null;showArtwork=true;onSelectionChanged?.invoke();invalidate()}
     fun setFrame(frame:Int){selected?.frame=frame.coerceIn(0,FrameCatalog.frames.lastIndex);invalidate()}
     fun setPrintSize(wCm:Float,hCm:Float,wallCm:Float){selected?.let{it.printW=wCm;it.printH=hCm
         it.widthFraction=(wCm/wallCm).coerceIn(.10f,.85f)};onSelectionChanged?.invoke();invalidate()}
-    fun recalibrate(wallCm:Float){artworks.forEach{it.widthFraction=(it.printW/wallCm).coerceIn(.10f,.85f)};invalidate()}
+    fun recalibrate(wallCm:Float){
+        wallWidthCm=wallCm
+        artworks.forEach{it.widthFraction=(it.printW/wallCm).coerceIn(.10f,.85f)}
+        invalidate()
+    }
     /** Persist the user-selected image rectangle in normalized original-image coordinates. */
     fun setCrop(rect: RectF) {
         selected?.apply {
@@ -339,6 +385,7 @@ class WallCanvasView(context: Context) : View(context) {
                 c.drawLine(sx,photoRect.top,sx,photoRect.bottom,marker)
             }
         }
+        if(showMeasurements&&!perspectivePreview)drawMeasurementGuides(c)
         if(showSelectionHandles&&!focusMode)drawAlignmentGuides(c)
         if(perspectivePreview&&perspectiveFineTune&&showArtwork)drawPerspectiveHandles(c)
     }
