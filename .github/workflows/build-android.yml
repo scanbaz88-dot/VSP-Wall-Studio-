@@ -1,4 +1,4 @@
-name: VSP Wall Studio 3.2 - 24 Ready Room Scenes APK
+name: VSP Wall Studio 3.3 - Frame Ready Walls + Lifetime Premium
 
 on:
   push:
@@ -100,6 +100,14 @@ jobs:
           python3 tools/prepare_room_assets.py
           test "$(find app/src/main/assets/rooms -maxdepth 1 -name 'room_??.jpg' | wc -l)" -eq 24
           test "$(find app/src/main/assets/rooms -maxdepth 1 -name 'thumb_room_??.jpg' | wc -l)" -eq 24
+      - name: Validate frame-ready wall scenes and suggested picture locations
+        run: python3 tools/verify_room_fit.py
+      - name: Upload scene visual QA evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSP-Wall-Studio-v3.3-Frame-Placement-Review
+          path: build/v33-wall-fit-review.jpg
+          if-no-files-found: error
       - name: Run tests and build test APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
       - name: Validate preview APK identity and certificate
@@ -112,19 +120,19 @@ jobs:
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.2-24-Ready-Rooms-APK
+          name: VSP-Wall-Studio-v3.3-Frame-Ready-Premium-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Upload unsigned release AAB for engineering checks (NOT FOR PLAY UPLOAD)
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.2-UNSIGNED-release-AAB
+          name: VSP-Wall-Studio-v3.3-UNSIGNED-release-AAB
           path: app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
       - name: Upload unit-test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.2-test-reports
+          name: VSP-Wall-Studio-v3.3-test-reports
           path: app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore
