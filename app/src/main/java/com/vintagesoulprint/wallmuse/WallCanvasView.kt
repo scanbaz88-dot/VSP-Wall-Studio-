@@ -31,6 +31,22 @@ class WallCanvasView(context: Context) : View(context) {
     var showSelectionHandles = true
     var smartSnap=true
         set(value){field=value;invalidate()}
+    private var calibrationFirstX:Float?=null
+    var onCalibrationFinished:((Float)->Unit)?=null
+    var calibrationActive=false
+        private set
+    fun beginWallCalibration(callback:(Float)->Unit) {
+        calibrationFirstX=null
+        onCalibrationFinished=callback
+        calibrationActive=true
+        invalidate()
+    }
+    fun cancelWallCalibration() {
+        calibrationActive=false
+        calibrationFirstX=null
+        onCalibrationFinished=null
+        invalidate()
+    }
     var ambientShadows=true
         set(value){field=value;invalidate()}
     var focusMode=false
@@ -225,6 +241,15 @@ class WallCanvasView(context: Context) : View(context) {
             val bound=RectF(10f*density,8f*density,width-10f*density,height-8f*density)
             photoRect.set(fit(room.width.toFloat(),room.height.toFloat(),bound))
             renderScene(c,photoRect,showArtwork&&(showSelectionHandles||(focusMode&&focusHandlesVisible)))
+        }
+        if(calibrationActive){
+            val marker=Paint(Paint.ANTI_ALIAS_FLAG).apply{
+                strokeWidth=3*density;color=0xFFD6BA88.toInt()
+            }
+            calibrationFirstX?.let{x->
+                val sx=photoRect.left+photoRect.width()*x
+                c.drawLine(sx,photoRect.top,sx,photoRect.bottom,marker)
+            }
         }
         if(showSelectionHandles&&!focusMode)drawAlignmentGuides(c)
         if(perspectivePreview&&perspectiveFineTune&&showArtwork)drawPerspectiveHandles(c)
@@ -422,6 +447,27 @@ class WallCanvasView(context: Context) : View(context) {
         return null
     }
     override fun onTouchEvent(e:MotionEvent):Boolean{
+        if(calibrationActive){
+            when(e.actionMasked){
+                MotionEvent.ACTION_DOWN->return true
+                MotionEvent.ACTION_UP->{
+                    val frac=((e.x-photoRect.left)/photoRect.width().coerceAtLeast(1f))
+                        .coerceIn(0f,1f)
+                    val first=calibrationFirstX
+                    if(first==null){calibrationFirstX=frac}
+                    else {
+                        val span=kotlin.math.abs(frac-first)
+                        if(span>=.08f){
+                            val callback=onCalibrationFinished
+                            cancelWallCalibration()
+                            callback?.invoke(span)
+                        }else calibrationFirstX=null
+                    }
+                    invalidate();return true
+                }
+            }
+            return true
+        }
         if(!isEnabled||!showArtwork)return super.onTouchEvent(e)
         if(perspectivePreview){
             when(e.actionMasked){
