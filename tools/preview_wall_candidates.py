@@ -19,6 +19,7 @@ candidates=[
 ("4386361","Cabinet and neutral wall","alleksana"),
 ("8251591","Bedroom white wall","PNW Production"),
 ("12277130","Blank wall armchair","dada design"),
+]
 cellw,cellh=300,244
 cols=4
 rows=(len(candidates)+cols-1)//cols
