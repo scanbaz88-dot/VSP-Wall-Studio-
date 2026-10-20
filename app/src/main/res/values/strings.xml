@@ -121,4 +121,6 @@
     <string name="export_png">PNG (lossless)</string>
     <string name="export_jpeg">JPG (high quality)</string>
     <string name="export_format">Save / share image</string>
+    <string name="my_wall_library">My Wall Library</string>
+    <string name="my_wall_library_hint">Reuse wall backgrounds from your saved projects.</string>
 </resources>
