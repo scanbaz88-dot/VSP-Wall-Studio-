@@ -1,4 +1,4 @@
-name: VSP Wall Studio 3.0 - Smart Wall Assistant APK
+name: VSP Wall Studio 3.1 - Lifetime Premium Readiness APK
 
 on:
   push:
@@ -94,7 +94,7 @@ jobs:
           base64 --decode app/preview-test-only.jks.base64 > app/preview-test-only.jks
           keytool -list -keystore app/preview-test-only.jks -storepass androidtest -alias VspWallStudioPreview > /dev/null
       - name: Run tests and build test APK
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
       - name: Validate preview APK identity and certificate
         shell: bash
         run: |
@@ -105,13 +105,19 @@ jobs:
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.0-Smart-Wall-Assistant-APK
+          name: VSP-Wall-Studio-v3.1-Premium-Readiness-APK
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload unsigned release AAB for engineering checks (NOT FOR PLAY UPLOAD)
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSP-Wall-Studio-v3.1-UNSIGNED-release-AAB
+          path: app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
       - name: Upload unit-test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-Wall-Studio-v3.0-test-reports
+          name: VSP-Wall-Studio-v3.1-test-reports
           path: app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore
